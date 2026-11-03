@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 140" width="300" height="140">
+  <!-- Approximation of the Triumph wordmark. Replace with the official SVG when you have it. -->
+  <style>
+    .wm { font-family: Georgia, "Times New Roman", serif; font-weight: 900; letter-spacing: 0.04em; }
+  </style>
+  <text x="150" y="92" text-anchor="middle" class="wm" font-size="78" fill="#C8102E">TRIUMPH</text>
+  <path d="M30 108 L270 108" stroke="#C8102E" stroke-width="3" fill="none"/>
+  <path d="M30 118 L270 118" stroke="#C8102E" stroke-width="1" fill="none"/>
+</svg>

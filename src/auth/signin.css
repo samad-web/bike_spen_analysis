@@ -1,0 +1,155 @@
+/* Sign-in page — redesigned.
+   Mobile: full-bleed hero image + glass form stacked below.
+   Desktop: 1.1fr hero / 1fr form split, calmer gradients, form breathes. */
+
+.signin {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: 1fr;
+  position: relative;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+/* Softer, more deliberate ambient gradients — down from 35% opacity to 18%
+   so the form on the right stays legible. */
+.signin::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(900px 700px at 10% 15%, rgba(245, 184, 0, 0.18) 0%, transparent 55%),
+    radial-gradient(900px 700px at 90% 95%, rgba(217, 70, 239, 0.14) 0%, transparent 55%);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.signin__hero,
+.signin__form-side {
+  position: relative;
+  z-index: 1;
+  padding: var(--s-5);
+  display: flex;
+  flex-direction: column;
+}
+
+.signin__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-3);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--t-md);
+}
+
+.signin__hero-copy {
+  margin-top: auto;
+  padding-top: var(--s-7);
+}
+.signin__hero-title {
+  font-size: clamp(32px, 6vw, 56px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  margin-bottom: var(--s-4);
+  color: var(--ink-strong);
+}
+.signin__hero-accent {
+  display: inline-block;
+  background: linear-gradient(135deg, var(--accent-500), var(--magenta-500));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.signin__hero-sub {
+  color: var(--ink-muted);
+  font-size: var(--t-md);
+  max-width: 440px;
+  margin-bottom: var(--s-6);
+  line-height: var(--lh-snug);
+}
+.signin__feats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--s-2);
+  max-width: 440px;
+}
+.signin__feat {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  font-size: var(--t-sm);
+  font-weight: 500;
+  color: var(--ink);
+}
+.signin__feat-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px; height: 24px;
+  border-radius: var(--r-pill);
+  background: var(--accent-500);
+  color: var(--ink-on-accent);
+  flex-shrink: 0;
+}
+
+.signin__form-side {
+  padding: var(--s-5);
+}
+.signin__form {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-outer);
+  padding: var(--s-6);
+  width: 100%;
+  max-width: 420px;
+  margin: auto;
+  box-shadow: var(--shadow-md);
+}
+.signin__form-title { font-size: var(--t-lg); margin-bottom: var(--s-1); }
+.signin__form-sub   { color: var(--ink-muted); font-size: var(--t-sm); margin-bottom: var(--s-5); }
+
+.signin__divider {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin: var(--s-4) 0;
+  color: var(--ink-faint);
+  font-size: var(--t-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.signin__divider::before,
+.signin__divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--divider);
+}
+
+.signin__status {
+  margin-top: var(--s-4);
+  padding: var(--s-3) var(--s-4);
+  background: var(--surface-alt);
+  border-radius: var(--r-inner);
+  font-size: var(--t-sm);
+  color: var(--ink-muted);
+}
+
+.signin__fine {
+  color: var(--ink-faint);
+  font-size: var(--t-xs);
+  margin-top: var(--s-5);
+  line-height: var(--lh-snug);
+}
+
+@media (min-width: 960px) {
+  .signin { grid-template-columns: 1.1fr 1fr; }
+  .signin__hero,
+  .signin__form-side { padding: var(--s-7); }
+  .signin__form-side { align-items: center; justify-content: center; }
+}

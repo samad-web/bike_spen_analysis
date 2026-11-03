@@ -1,0 +1,742 @@
+@import "./tokens.css";
+
+/* ============================================================================
+   BASE
+   ============================================================================ */
+*, *::before, *::after { box-sizing: border-box; }
+html, body, #root { margin: 0; padding: 0; height: 100%; }
+body {
+  font-family: var(--font-sans);
+  font-size: var(--t-base);
+  line-height: var(--lh-base);
+  color: var(--ink);
+  background: var(--bg-gradient);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+button { font-family: inherit; cursor: pointer; }
+
+/* Safety net: any <button> that didn't opt into a style system (plain
+   `<button>` in legacy screens like TagInfoScreen) still renders readably
+   in both themes instead of inheriting the browser's system white. */
+button:not([class]), button[class=""] {
+  height: 36px;
+  padding: 0 var(--s-4);
+  background: var(--surface-alt);
+  color: var(--ink);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-pill);
+  font-size: var(--t-sm);
+  font-weight: 500;
+}
+a { color: inherit; text-decoration: none; }
+img { max-width: 100%; display: block; }
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+  margin: 0;
+  line-height: var(--lh-tight);
+  color: var(--ink-strong);
+  font-weight: 700;
+}
+h1 { font-size: var(--t-xl); }
+h2 { font-size: var(--t-xl); }
+h3 { font-size: var(--t-lg); }
+h4 { font-size: var(--t-md); font-weight: 600; }
+p  { margin: 0; }
+
+:focus-visible {
+  outline: 2px solid var(--accent-500);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ============================================================================
+   LAYOUT — sidebar on desktop (>= 960px), floating pill nav on mobile
+   ============================================================================ */
+.app-shell {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr auto;
+}
+.app-main {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--s-5) var(--s-4) calc(var(--nav-mobile-height) + var(--s-5));
+}
+@media (min-width: 960px) {
+  .app-shell {
+    grid-template-columns: var(--nav-sidebar-width) 1fr;
+    grid-template-rows: 1fr;
+  }
+  .app-main { padding: var(--s-6) var(--s-7); grid-column: 2; }
+}
+
+/* ============================================================================
+   SPACING UTILITIES — kill 90% of inline style={{ margin, padding }} usage
+   ============================================================================ */
+.u-stack-1 > * + * { margin-top: var(--s-1); }
+.u-stack-2 > * + * { margin-top: var(--s-2); }
+.u-stack-3 > * + * { margin-top: var(--s-3); }
+.u-stack-4 > * + * { margin-top: var(--s-4); }
+.u-stack-5 > * + * { margin-top: var(--s-5); }
+.u-stack-6 > * + * { margin-top: var(--s-6); }
+
+.u-row  { display: flex; align-items: center; }
+.u-row-between { justify-content: space-between; }
+.u-row-end { justify-content: flex-end; }
+.u-row-wrap { flex-wrap: wrap; }
+.u-col  { display: flex; flex-direction: column; }
+.u-gap-1 { gap: var(--s-1); }
+.u-gap-2 { gap: var(--s-2); }
+.u-gap-3 { gap: var(--s-3); }
+.u-gap-4 { gap: var(--s-4); }
+.u-gap-5 { gap: var(--s-5); }
+.u-gap-6 { gap: var(--s-6); }
+
+.u-grow { flex: 1 1 auto; }
+.u-noshrink { flex-shrink: 0; }
+.u-full { width: 100%; }
+
+.u-text-xs { font-size: var(--t-xs); }
+.u-text-sm { font-size: var(--t-sm); }
+.u-text-md { font-size: var(--t-md); }
+.u-text-lg { font-size: var(--t-lg); }
+
+.u-ink        { color: var(--ink); }
+.u-ink-strong { color: var(--ink-strong); }
+.u-ink-muted  { color: var(--ink-muted); }
+.u-ink-faint  { color: var(--ink-faint); }
+.u-on-dark    { color: var(--ink-on-dark); }
+.u-on-dark-muted { color: var(--ink-on-dark-muted); }
+.u-on-accent  { color: var(--ink-on-accent); }
+
+.u-weight-500 { font-weight: 500; }
+.u-weight-600 { font-weight: 600; }
+.u-weight-700 { font-weight: 700; }
+
+.u-truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ============================================================================
+   PRIMITIVES
+   ============================================================================ */
+
+/* Card — ONE padding system. --inset modifier for photo cards that bleed. */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-outer);
+  padding: var(--s-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+.card--dark {
+  background: var(--surface-dark);
+  color: var(--ink-on-dark);
+  border-color: var(--surface-dark-alt);
+}
+.card--dark h1, .card--dark h2, .card--dark h3, .card--dark h4 { color: var(--ink-on-dark); }
+.card--accent {
+  background: linear-gradient(140deg, var(--accent-200) 0%, var(--accent-500) 100%);
+  color: var(--ink-on-accent);
+  border-color: transparent;
+}
+.card--accent h1, .card--accent h2, .card--accent h3, .card--accent h4 { color: var(--ink-on-accent); }
+.card--flush { padding: 0; overflow: hidden; }
+
+/* Section heading — paired eyebrow + title treatment used across cards */
+.card__eyebrow {
+  font-size: var(--t-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-muted);
+  font-weight: 500;
+}
+
+/* Glass — frosted panel over a gradient. */
+.glass {
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.2);
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.2);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r-outer);
+  padding: var(--s-5);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass { background: var(--glass-bg-strong); }
+}
+
+/* Button — exactly ONE height. Variants are the ONLY thing that changes color.
+   The bare `.btn` fallback uses surface-alt so an unmodified button is
+   never "white on white" in dark mode — a bug caught in the audit when
+   `--ink-strong` flipped from near-black to white but `--ink-on-dark`
+   stayed near-white, leaving a `variant="dark"` button unreadable. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  height: var(--h-control);
+  padding: 0 var(--s-5);
+  border-radius: var(--r-pill);
+  background: var(--surface-alt);
+  color: var(--ink);
+  font-size: var(--t-base);
+  font-weight: 600;
+  border: 1px solid var(--border-strong);
+  transition: transform var(--dur-fast) var(--ease), background var(--dur-fast), box-shadow var(--dur-fast);
+  white-space: nowrap;
+}
+.btn:hover { transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+.btn--primary { background: var(--accent-500); color: var(--ink-on-accent); border-color: transparent; }
+.btn--primary:hover { box-shadow: var(--shadow-glow); }
+
+/* Dark variant — stays black-on-light-ink in BOTH color schemes because
+   `--surface-dark` is tokenized as "always near-black" rather than following
+   the ink/surface flip. Used for secondary CTAs on light surfaces. */
+.btn--dark { background: var(--surface-dark); color: var(--ink-on-dark); border-color: transparent; }
+.btn--dark:hover { background: var(--surface-dark-alt); }
+
+.btn--ghost { background: transparent; color: var(--ink); border: 1px solid var(--border-strong); }
+.btn--ghost:hover { background: var(--surface-alt); box-shadow: none; }
+
+.btn--sm { height: 36px; padding: 0 var(--s-4); font-size: var(--t-sm); gap: var(--s-1); }
+.btn--icon { width: var(--h-control); padding: 0; }
+
+/* Input / select / textarea — SAME height as buttons */
+input, select, textarea {
+  width: 100%;
+  height: var(--h-control);
+  padding: 0 var(--s-4);
+  border-radius: var(--r-inner);
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--t-base);
+  font-family: inherit;
+  transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
+}
+textarea { height: auto; padding: var(--s-3) var(--s-4); min-height: 88px; resize: vertical; }
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--accent-500);
+  box-shadow: 0 0 0 3px rgba(245, 184, 0, 0.18);
+}
+input[type="checkbox"] { width: auto; height: auto; min-height: 0; }
+input[type="date"] { padding-right: var(--s-3); }
+
+/* Labels — sentence case, no caps, lighter */
+label {
+  display: block;
+  font-size: var(--t-sm);
+  font-weight: 500;
+  color: var(--ink-muted);
+  margin: 0 0 var(--s-2);
+}
+label + input, label + select, label + textarea { margin-bottom: var(--s-4); }
+
+/* Chip — the ONE small-pill component. Variants only. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  height: var(--h-chip);
+  padding: 0 var(--s-3);
+  border-radius: var(--r-pill);
+  background: var(--surface-alt);
+  color: var(--ink-muted);
+  font-size: var(--t-xs);
+  font-weight: 500;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.chip--ink  { background: var(--ink-strong); color: var(--ink-on-dark); }
+.chip--accent { background: var(--accent-500); color: var(--ink-on-accent); }
+.chip--on-dark { background: rgba(255, 255, 255, 0.08); color: var(--ink-on-dark); }
+.chip--on-accent { background: rgba(0, 0, 0, 0.14); color: inherit; }
+.chip--good { background: color-mix(in oklab, var(--status-good) 15%, transparent); color: var(--status-good); }
+.chip--warn { background: color-mix(in oklab, var(--status-warn) 15%, transparent); color: var(--status-warn); }
+.chip--crit { background: color-mix(in oklab, var(--status-crit) 15%, transparent); color: var(--status-crit); }
+
+/* Pill button — same height as btn, but softer */
+.pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  height: 36px;
+  padding: 0 var(--s-4);
+  border-radius: var(--r-pill);
+  background: var(--surface-alt);
+  color: var(--ink);
+  font-size: var(--t-sm);
+  font-weight: 500;
+  border: 1px solid var(--border);
+  white-space: nowrap;
+}
+.pill-btn:hover { background: var(--border); }
+/* Active state uses the brand accent — stable in both light and dark modes
+   (the previous `--ink-strong` background flipped to white in dark mode
+   with white-ish text, which is what the "Add your first vehicle" + "PDF"
+   buttons looked like in the audit screenshots). */
+.pill-btn.is-active { background: var(--accent-500); color: var(--ink-on-accent); border-color: transparent; }
+.pill-btn--accent.is-active { background: var(--accent-500); color: var(--ink-on-accent); }
+/* Dark variant for an active pill when the chrome calls for black not amber
+   (NFC tab bar, where we want restrained selection). */
+.pill-btn.is-active-dark { background: var(--surface-dark); color: var(--ink-on-dark); border-color: transparent; }
+
+/* ============================================================================
+   STAT TILE
+   ============================================================================ */
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  padding: var(--s-4) var(--s-5);
+  border-radius: var(--r-outer);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  min-height: 92px;
+  justify-content: center;
+}
+.stat__label {
+  font-size: var(--t-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-muted);
+  font-weight: 500;
+}
+.stat__value {
+  font-family: var(--font-display);
+  font-size: var(--t-lg);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--ink-strong);
+}
+.stat__delta { font-size: var(--t-xs); color: var(--ink-muted); }
+
+.stat--accent { background: linear-gradient(140deg, var(--accent-glow), var(--accent-500)); border-color: transparent; }
+.stat--accent .stat__label, .stat--accent .stat__value, .stat--accent .stat__delta { color: var(--ink-on-accent); }
+.stat--dark  { background: var(--surface-dark); border-color: transparent; }
+.stat--dark .stat__label  { color: var(--ink-on-dark-muted); }
+.stat--dark .stat__value  { color: var(--ink-on-dark); }
+.stat--dark .stat__delta  { color: var(--ink-on-dark-muted); }
+
+/* ============================================================================
+   NAV — mobile pill (fixed) + desktop sidebar (sticky)
+   ============================================================================ */
+.mobile-nav {
+  position: fixed;
+  left: 50%;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + var(--s-4));
+  transform: translateX(-50%);
+  width: calc(100% - var(--s-6));
+  max-width: 400px;
+  height: var(--nav-mobile-height);
+  background: var(--surface-dark);
+  color: var(--ink-on-dark);
+  border-radius: var(--r-pill);
+  padding: 0 var(--s-3);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  box-shadow: var(--shadow-lg);
+  z-index: 50;
+}
+.mobile-nav__item {
+  width: 48px; height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-pill);
+  color: var(--neutral-400);
+  transition: background var(--dur-fast), color var(--dur-fast), transform var(--dur-fast);
+}
+.mobile-nav__item:hover { color: var(--ink-on-dark); }
+.mobile-nav__item.active {
+  background: var(--accent-500);
+  color: var(--ink-on-accent);
+  box-shadow: 0 6px 18px rgba(245, 184, 0, 0.35);
+}
+@media (min-width: 960px) { .mobile-nav { display: none; } }
+
+.sidebar { display: none; }
+@media (min-width: 960px) {
+  .sidebar {
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    padding: var(--s-5) var(--s-4);
+    background: var(--surface-dark);
+    color: var(--ink-on-dark);
+    gap: var(--s-1);
+  }
+  .sidebar__brand {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: var(--t-md);
+    padding: var(--s-2) var(--s-3) var(--s-5);
+    color: var(--ink-on-dark);
+  }
+  .sidebar__brand-mark {
+    width: 36px; height: 36px; border-radius: var(--r-inner);
+    background: linear-gradient(135deg, var(--accent-glow), var(--accent-500));
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--ink-on-accent);
+  }
+  .sidebar__section {
+    text-transform: uppercase;
+    font-size: var(--t-xs);
+    letter-spacing: 0.1em;
+    color: var(--neutral-500);
+    padding: var(--s-5) var(--s-3) var(--s-2);
+  }
+  .sidebar__item {
+    display: flex; align-items: center; gap: var(--s-3);
+    height: 40px;
+    padding: 0 var(--s-3);
+    border-radius: var(--r-inner);
+    color: var(--neutral-300);
+    font-weight: 500;
+    font-size: var(--t-sm);
+    transition: background var(--dur-fast), color var(--dur-fast);
+  }
+  .sidebar__item:hover { color: var(--ink-on-dark); background: rgba(255,255,255,0.04); }
+  .sidebar__item.active {
+    background: linear-gradient(135deg, var(--magenta-500), var(--magenta-600));
+    color: #fff;
+    box-shadow: 0 6px 16px rgba(217, 70, 239, 0.3);
+  }
+}
+
+/* ============================================================================
+   BENTO GRID — explicit composition slots, not random spans
+   ============================================================================ */
+.bento {
+  display: grid;
+  gap: var(--s-4);
+  grid-template-columns: 1fr;
+}
+@media (min-width: 640px) {
+  .bento { grid-template-columns: repeat(6, 1fr); gap: var(--s-4); }
+}
+@media (min-width: 960px) {
+  .bento { grid-template-columns: repeat(12, 1fr); gap: var(--s-5); }
+}
+.bento__3  { grid-column: span 6; }
+.bento__4  { grid-column: span 6; }
+.bento__6  { grid-column: span 6; }
+.bento__12 { grid-column: span 6; }
+@media (min-width: 640px) {
+  .bento__3  { grid-column: span 3; }
+  .bento__4  { grid-column: span 3; }
+  .bento__6  { grid-column: span 6; }
+  .bento__12 { grid-column: span 6; }
+}
+@media (min-width: 960px) {
+  .bento__3  { grid-column: span 3; }
+  .bento__4  { grid-column: span 4; }
+  .bento__6  { grid-column: span 6; }
+  .bento__8  { grid-column: span 8; }
+  .bento__12 { grid-column: span 12; }
+}
+
+/* ============================================================================
+   VEHICLE CARD (garage grid)
+   ============================================================================ */
+.vehicle {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--r-outer);
+  background: var(--surface-dark);
+  color: var(--ink-on-dark);
+  padding: var(--s-5);
+  min-height: 180px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: transform var(--dur-med) var(--ease), box-shadow var(--dur-med);
+  cursor: pointer;
+  gap: var(--s-4);
+}
+.vehicle:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+.vehicle--accent { background: linear-gradient(140deg, var(--accent-200) 0%, var(--accent-500) 100%); color: var(--ink-on-accent); }
+.vehicle--surface { background: var(--surface); color: var(--ink); border: 1px solid var(--border); }
+.vehicle__brand { font-size: var(--t-xs); text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.72; }
+.vehicle__name  { font-family: var(--font-display); font-size: var(--t-lg); font-weight: 700; letter-spacing: -0.02em; }
+.vehicle__meta  { font-size: var(--t-sm); opacity: 0.72; }
+.vehicle__photo {
+  position: absolute;
+  bottom: -8px; right: -8px;
+  width: 55%; height: 60%;
+  object-fit: contain;
+  object-position: bottom right;
+  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.2));
+  pointer-events: none;
+}
+.vehicle__photo--placeholder {
+  position: absolute;
+  right: var(--s-4); bottom: var(--s-4);
+  font-size: 48px; opacity: 0.4;
+}
+
+/* ============================================================================
+   SHEET MODAL
+   ============================================================================ */
+.sheet-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(10, 10, 14, 0.55);
+  backdrop-filter: blur(4px);
+  z-index: 60;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: fadeIn var(--dur-fast) var(--ease);
+}
+.sheet {
+  background: var(--surface);
+  color: var(--ink);
+  width: 100%;
+  max-width: 520px;
+  max-height: 92dvh;
+  overflow: auto;
+  border-radius: var(--r-outer) var(--r-outer) 0 0;
+  padding: var(--s-5) var(--s-5) calc(var(--nav-mobile-height) + var(--s-5));
+  animation: sheetUp var(--dur-med) var(--ease);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+@media (min-width: 640px) {
+  .sheet-backdrop { align-items: center; }
+  .sheet { border-radius: var(--r-outer); padding: var(--s-5) var(--s-5) var(--s-5); }
+}
+.sheet__handle {
+  width: 44px; height: 4px; border-radius: 999px;
+  background: var(--border-strong);
+  margin: 0 auto;
+  flex-shrink: 0;
+}
+.sheet__title { font-size: var(--t-md); font-weight: 700; color: var(--ink-strong); }
+.sheet__subtitle { font-size: var(--t-sm); color: var(--ink-muted); }
+.sheet__actions { display: flex; gap: var(--s-2); margin-top: var(--s-3); justify-content: flex-end; }
+
+/* ============================================================================
+   TOAST
+   ============================================================================ */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--nav-mobile-height) + env(safe-area-inset-bottom, 0px) + var(--s-5));
+  transform: translateX(-50%);
+  background: var(--ink-strong);
+  color: var(--ink-on-dark);
+  padding: var(--s-3) var(--s-5);
+  border-radius: var(--r-pill);
+  box-shadow: var(--shadow-lg);
+  z-index: 70;
+  display: flex; align-items: center; gap: var(--s-3);
+  animation: toastIn var(--dur-med) var(--ease);
+  max-width: calc(100% - var(--s-6));
+  font-size: var(--t-sm);
+}
+.toast__action { color: var(--accent-glow); font-weight: 600; background: none; border: 0; padding: 0 var(--s-2); }
+
+/* ============================================================================
+   LIST ROW (used in recent activity, reminders, documents)
+   ============================================================================ */
+.list { list-style: none; margin: 0; padding: 0; }
+.list__row {
+  display: grid;
+  grid-template-columns: 36px 1fr auto;
+  grid-column-gap: var(--s-3);
+  align-items: center;
+  padding: var(--s-3) 0;
+  border-bottom: 1px solid var(--divider);
+}
+.list__row:last-child { border-bottom: 0; }
+.list__icon {
+  width: 36px; height: 36px;
+  border-radius: var(--r-inner);
+  background: var(--surface-alt);
+  color: var(--ink-muted);
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.list__icon--fuel      { background: color-mix(in oklab, var(--accent-500) 20%, var(--surface)); color: var(--accent-700); }
+.list__icon--maint     { background: color-mix(in oklab, var(--magenta-500) 18%, var(--surface)); color: var(--magenta-600); }
+.list__row-title { font-weight: 600; color: var(--ink); font-size: var(--t-sm); }
+.list__row-meta  { font-size: var(--t-xs); color: var(--ink-muted); }
+.list__row-value { font-weight: 700; color: var(--ink-strong); font-variant-numeric: tabular-nums; }
+
+/* ============================================================================
+   HERO TYPE
+   ============================================================================ */
+.hero-num {
+  font-family: var(--font-display);
+  font-size: var(--t-hero);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================================
+   SCROLL ROW (horizontal strip)
+   ============================================================================ */
+.scroll-x {
+  display: flex; gap: var(--s-3); overflow-x: auto;
+  padding: 0 0 var(--s-3);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scroll-x::-webkit-scrollbar { display: none; }
+
+/* ============================================================================
+   CHART (SVG hooks)
+   ============================================================================ */
+.chart {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.chart text {
+  fill: var(--ink-muted);
+  font-size: var(--t-xs);
+  font-family: var(--font-sans);
+}
+.chart .axis-grid { stroke: var(--divider); stroke-width: 1; }
+.chart .mark-line { fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.card--dark .chart text { fill: var(--ink-on-dark-muted); }
+
+/* ============================================================================
+   SKELETON SHIMMER
+   ============================================================================ */
+.skeleton {
+  display: block;
+  background:
+    linear-gradient(100deg,
+      transparent 0%,
+      rgba(245, 184, 0, 0.08) 50%,
+      transparent 100%) 0 0 / 200% 100% no-repeat,
+    var(--surface-alt);
+  animation: shimmer 1.6s linear infinite;
+  border-radius: var(--r-inner);
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton { animation: none; background: var(--surface-alt); }
+}
+
+/* ============================================================================
+   ANIMATIONS
+   ============================================================================ */
+@keyframes fadeIn   { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sheetUp  { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes toastIn  { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@keyframes shimmer  { 0% { background-position: -200% 0, 0 0; } 100% { background-position: 200% 0, 0 0; } }
+@keyframes pulseGlow { 0%, 100% { box-shadow: 0 0 0 0 rgba(245, 184, 0, 0.5); } 50% { box-shadow: 0 0 0 10px rgba(245, 184, 0, 0); } }
+.pulse { animation: pulseGlow 2s ease-in-out infinite; }
+
+/* Dot — small circular swatch for legend entries */
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 999px; flex-shrink: 0; }
+
+/* Scan FAB — a persistent "scan a QR / NFC tag" affordance that floats
+   above the mobile bottom nav. On desktop it moves to the top-right of
+   the main content area. */
+.scan-fab {
+  position: fixed;
+  right: var(--s-5);
+  bottom: calc(var(--nav-mobile-height) + env(safe-area-inset-bottom, 0px) + var(--s-5));
+  z-index: 40;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 0 var(--s-5);
+  height: 52px;
+  background: var(--accent-500);
+  color: var(--ink-on-accent);
+  border: 0;
+  border-radius: var(--r-pill);
+  font-size: var(--t-base);
+  font-weight: 700;
+  box-shadow: var(--shadow-glow);
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease);
+}
+.scan-fab:hover { transform: translateY(-2px); }
+.scan-fab:active { transform: translateY(0); }
+@media (min-width: 960px) {
+  .scan-fab { right: var(--s-7); bottom: var(--s-7); }
+}
+
+/* Donation / invite QR frames — white box behind the QR regardless of theme */
+.donate-qr {
+  background: white;
+  padding: 12px;
+  border-radius: var(--r-inner);
+  border: 1px solid var(--border);
+  display: inline-block;
+  flex-shrink: 0;
+}
+.donate-qr canvas { display: block; }
+.donate-qr--small { padding: 8px; }
+
+/* Admin table */
+.admin-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--t-sm);
+}
+.admin-table th {
+  text-align: left;
+  padding: var(--s-2) var(--s-3);
+  color: var(--ink-muted);
+  font-size: var(--t-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+}
+.admin-table td {
+  padding: var(--s-3);
+  border-bottom: 1px solid var(--divider);
+  white-space: nowrap;
+}
+.admin-table tr:last-child td { border-bottom: 0; }
+
+/* Large amount input used in the quick-log form */
+.amount-input {
+  height: 64px;
+  font-size: var(--t-xl);
+  font-weight: 700;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================================
+   PAGE-LEVEL HEADER (used on each screen)
+   ============================================================================ */
+.page-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+  margin-bottom: var(--s-5);
+}
+.page-head h1 { font-size: var(--t-xl); font-weight: 700; }
+.page-head p  { color: var(--ink-muted); font-size: var(--t-sm); margin-top: var(--s-1); }
+.page-head__actions { display: flex; gap: var(--s-2); align-items: center; flex-wrap: wrap; }

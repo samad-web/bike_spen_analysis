@@ -1,0 +1,163 @@
+/* ============================================================================
+   MotoPulse — design tokens (post-audit, tightened)
+   ----------------------------------------------------------------------------
+   Rules the system enforces:
+     - 6 type sizes total. No more.
+     - ONE spacing scale: 4 / 8 / 12 / 16 / 24 / 32 / 48 / 64
+     - 3 corner radii: 14 (inner), 24 (outer), 999 (pill)
+     - 3 icon sizes: 14 (inline), 18 (list), 22 (nav)
+     - Interactive heights locked at 44px (buttons, inputs, selects, pills-as-input)
+     - Chips are compact at 28px.
+   ============================================================================ */
+
+:root {
+  /* -------- Palette (unchanged — these were fine, keeping validated colors) */
+  --accent-50:  #fff8e6;
+  --accent-100: #ffecb0;
+  --accent-200: #ffd96b;
+  --accent-500: #f5b800;
+  --accent-600: #d99a00;
+  --accent-700: #a87500;
+  --accent-glow: #ffb84a;
+
+  --magenta-400: #e879f9;
+  --magenta-500: #d946ef;
+  --magenta-600: #a21caf;
+
+  --neutral-0:   #ffffff;
+  --neutral-50:  #faf9f6;
+  --neutral-100: #efede6;
+  --neutral-200: #d9d6cc;
+  --neutral-300: #b8b4a8;
+  --neutral-400: #8a877d;
+  --neutral-500: #5f5d55;
+  --neutral-600: #3f3e39;
+  --neutral-700: #262521;
+  --neutral-800: #16161a;
+  --neutral-900: #0b0b0f;
+
+  --status-good: #16a34a;
+  --status-warn: #f59e0b;
+  --status-serious: #ea580c;
+  --status-crit: #dc2626;
+
+  --chart-1: #f5b800;
+  --chart-2: #d946ef;
+  --chart-3: #06b6d4;
+  --chart-4: #a3e635;
+  --chart-5: #fb7185;
+  --chart-6: #a78bfa;
+
+  /* -------- Surfaces (light mode) */
+  --bg:            var(--neutral-50);
+  --bg-gradient:   radial-gradient(1000px 700px at 0% 0%, #fff8e6 0%, var(--neutral-50) 45%);
+  --surface:       var(--neutral-0);
+  --surface-alt:   #f3f1ea;
+  --surface-dark:  var(--neutral-800);
+  --surface-dark-alt: #1d1d22;
+
+  --ink:           var(--neutral-800);
+  --ink-strong:    #000;
+  --ink-muted:     #6a6962;
+  --ink-faint:     #a6a49b;
+  --ink-on-dark:   #f0efe9;
+  --ink-on-dark-muted: #a1a099;
+  --ink-on-accent: var(--neutral-800);
+
+  --border:        rgba(16, 16, 20, 0.08);
+  --border-strong: rgba(16, 16, 20, 0.14);
+  --divider:       rgba(16, 16, 20, 0.06);
+
+  --glass-bg:        rgba(255, 255, 255, 0.72);
+  --glass-bg-strong: rgba(255, 255, 255, 0.88);
+  --glass-border:    rgba(255, 255, 255, 0.5);
+  --glass-blur:      18px;
+
+  /* -------- Spacing — ONE scale, consumed via helper classes */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+  --s-8: 64px;
+
+  /* -------- Corners — THREE values */
+  --r-inner: 14px;
+  --r-outer: 24px;
+  --r-pill:  999px;
+
+  /* -------- Interactive heights */
+  --h-control: 44px;      /* button, input, select, pill-as-input */
+  --h-chip:    28px;      /* read-only status pill */
+
+  /* -------- Shadows — softer, less dramatic */
+  --shadow-xs:  0 1px 2px rgba(16, 16, 20, 0.04);
+  --shadow-sm:  0 1px 2px rgba(16, 16, 20, 0.04), 0 4px 10px rgba(16, 16, 20, 0.05);
+  --shadow-md:  0 4px 12px rgba(16, 16, 20, 0.08), 0 12px 30px rgba(16, 16, 20, 0.07);
+  --shadow-lg:  0 20px 50px rgba(16, 16, 20, 0.14);
+  --shadow-glow: 0 10px 26px rgba(245, 184, 0, 0.28);
+
+  /* -------- Typography — 6 sizes total */
+  --font-sans: "Inter", "SF Pro Text", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-display: "Inter Display", "SF Pro Display", "Inter", sans-serif;
+
+  --t-xs:    11px;   /* micro: chip label, badge */
+  --t-sm:    13px;   /* secondary ink */
+  --t-base:  15px;   /* body */
+  --t-md:    18px;   /* small heading / card title */
+  --t-lg:    24px;   /* section heading */
+  --t-xl:    36px;   /* page heading / stat value */
+  --t-hero:  48px;   /* dashboard hero number */
+
+  /* leading */
+  --lh-tight: 1.1;
+  --lh-snug:  1.3;
+  --lh-base:  1.5;
+
+  /* -------- Motion */
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 160ms;
+  --dur-med:  260ms;
+
+  /* -------- Nav sizing */
+  --nav-mobile-height: 72px;
+  --nav-sidebar-width: 232px;
+}
+
+/* ----- Dark mode (prefers-color-scheme respected; forced by [data-theme]) */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg:          var(--neutral-900);
+    --bg-gradient: radial-gradient(900px 650px at 0% 0%, rgba(217, 70, 239, 0.14) 0%, transparent 55%),
+                   radial-gradient(1100px 750px at 100% 100%, rgba(245, 184, 0, 0.06) 0%, transparent 55%),
+                   var(--neutral-900);
+    --surface:       var(--neutral-800);
+    --surface-alt:   #1d1d22;
+    --surface-dark:  #0e0e11;
+    --surface-dark-alt: #16161a;
+    --ink:           #f0efe9;
+    --ink-strong:    #fff;
+    --ink-muted:     #a0a097;
+    --ink-faint:     #6a6962;
+    --ink-on-dark:   #f0efe9;
+    --ink-on-dark-muted: #a0a097;
+    --ink-on-accent: var(--neutral-900);
+    --border:        rgba(255, 255, 255, 0.08);
+    --border-strong: rgba(255, 255, 255, 0.14);
+    --divider:       rgba(255, 255, 255, 0.05);
+    --glass-bg:        rgba(255, 255, 255, 0.05);
+    --glass-bg-strong: rgba(255, 255, 255, 0.08);
+    --glass-border:    rgba(255, 255, 255, 0.12);
+    --shadow-sm:  0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 10px rgba(0, 0, 0, 0.5);
+    --shadow-md:  0 4px 12px rgba(0, 0, 0, 0.5), 0 12px 30px rgba(0, 0, 0, 0.6);
+    --shadow-lg:  0 20px 50px rgba(0, 0, 0, 0.7);
+  }
+}
+:root[data-theme="dark"] {
+  --bg:          var(--neutral-900);
+  --surface:     var(--neutral-800);
+  --surface-alt: #1d1d22;
+  --ink:         #f0efe9;
+}
