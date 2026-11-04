@@ -7,3 +7,8 @@ android/
 ios/
 .capacitor/
 *.keystore
+
+# Build artifacts
+tsconfig.tsbuildinfo
+*.apk
+*.aab
