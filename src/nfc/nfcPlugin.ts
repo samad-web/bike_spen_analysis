@@ -163,7 +163,7 @@ export async function runOnNextTag<T>(inSession: (result: ScanResult) => Promise
  * needed for the common case — see nfc-tools.md EraseFormatScreen for the
  * explicit standalone version). */
 export async function writeTokenUrl(token: string): Promise<void> {
-  await CapacitorNfc.write({ allowFormat: true, records: [buildTokenUrlRecord(token), buildAarRecord()] });
+  await CapacitorNfc.write({ allowFormat: true, records: [buildTokenUrlRecord(token)] });
 }
 
 /** Writes an empty NDEF message to the last-scanned tag (Erase, per the
