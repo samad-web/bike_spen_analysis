@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { CapacitorNfc } from "@capgo/capacitor-nfc";
 import { Button, Icon } from "@/app/ui";
-import { buildTokenUrlRecord, decodeUriRecord, runOnNextTag } from "./nfcPlugin";
+import { buildAarRecord, buildTokenUrlRecord, decodeUriRecord, runOnNextTag } from "./nfcPlugin";
 import { checkTagCompatibility } from "./nfcCompat";
 import { findTagByToken, generateToken, markTagReplaced, registerToken } from "./tagRegistry";
 import { logTagEvent } from "./useTagEvents";
@@ -64,8 +64,8 @@ export function ReplaceTagScreen({ vehicleId, vehicleName, onReplaced }: Props) 
       const { uidHex } = await runOnNextTag(async (scan) => {
         const compat = checkTagCompatibility(scan.tag);
         if (!compat.compatible) throw new Error(compat.reason ?? "Incompatible tag.");
-        // Session still open — write while tag is in contact.
-        await CapacitorNfc.write({ allowFormat: true, records: [record] });
+        // Session still open — write URL + Android Application Record (AAR) now.
+        await CapacitorNfc.write({ allowFormat: true, records: [record, buildAarRecord()] });
         return { uidHex: scan.uidHex };
       });
 

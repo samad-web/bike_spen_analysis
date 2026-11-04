@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { CapacitorNfc } from "@capgo/capacitor-nfc";
 import { Button, Icon } from "@/app/ui";
-import { buildTokenUrlRecord, decodeUriRecord, MOTOPULSE_URL_PREFIX, runOnNextTag } from "./nfcPlugin";
+import { buildAarRecord, buildTokenUrlRecord, decodeUriRecord, MOTOPULSE_URL_PREFIX, runOnNextTag } from "./nfcPlugin";
 import { checkTagCompatibility } from "./nfcCompat";
 import { findTagByToken, generateToken, markTagReplaced, registerToken } from "./tagRegistry";
 import { logTagEvent } from "./useTagEvents";
@@ -49,8 +49,9 @@ export function WriteTagScreen({ vehicleId, vehicleName, onWritten }: Props) {
           throw new Error("This tag is registered to another vehicle. Use the Replace tab to reassign it.");
         }
 
-        // Session still open — write now.
-        await CapacitorNfc.write({ allowFormat: true, records: [newRecord] });
+        // Session still open — write URL + Android Application Record (AAR) now.
+        // The AAR guarantees Android launches the MotoPulse app directly.
+        await CapacitorNfc.write({ allowFormat: true, records: [newRecord, buildAarRecord()] });
         return {
           tagUid: scan.uidHex,
           tagType: scan.tag.type ?? null,

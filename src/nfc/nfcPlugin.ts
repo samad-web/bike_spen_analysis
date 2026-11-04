@@ -28,6 +28,23 @@ export function buildTokenUrlRecord(token: string) {
   return { tnf: TNF_WELL_KNOWN, type: TYPE_URI, id: [], payload: [URI_PREFIX_HTTPS, ...suffix] };
 }
 
+/**
+ * Builds an Android Application Record (AAR).
+ * When present on an NFC tag alongside the URI record, Android's NFC service
+ * guarantees that this specific package is launched directly without prompting
+ * or falling back to the browser.
+ */
+export function buildAarRecord(packageName = "app.motopulse.android") {
+  const type = Array.from(new TextEncoder().encode("android.com:pkg"));
+  const payload = Array.from(new TextEncoder().encode(packageName));
+  return {
+    tnf: 0x04, // TNF_EXTERNAL_TYPE
+    type,
+    id: [],
+    payload,
+  };
+}
+
 /** Decodes a URI record back to a full URL, reversing buildTokenUrlRecord.
  * Returns null if the record isn't a well-known URI record we recognize. */
 export function decodeUriRecord(record: { tnf: number; type: number[]; payload: number[] }): string | null {
@@ -146,7 +163,7 @@ export async function runOnNextTag<T>(inSession: (result: ScanResult) => Promise
  * needed for the common case — see nfc-tools.md EraseFormatScreen for the
  * explicit standalone version). */
 export async function writeTokenUrl(token: string): Promise<void> {
-  await CapacitorNfc.write({ allowFormat: true, records: [buildTokenUrlRecord(token)] });
+  await CapacitorNfc.write({ allowFormat: true, records: [buildTokenUrlRecord(token), buildAarRecord()] });
 }
 
 /** Writes an empty NDEF message to the last-scanned tag (Erase, per the
