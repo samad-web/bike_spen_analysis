@@ -1,57 +1,40 @@
 import { useState } from "react";
-import { errorMessage } from "@/lib/errors";
-import { scanOnce, eraseTag, decodeUriRecord, MOTOPULSE_URL_PREFIX } from "./nfcPlugin";
+import { CapacitorNfc } from "@capgo/capacitor-nfc";
+import { Button, Icon } from "@/app/ui";
+import { decodeUriRecord, MOTOPULSE_URL_PREFIX, runOnNextTag } from "./nfcPlugin";
 import { findTagByToken, markTagErased } from "./tagRegistry";
 import { logTagEvent } from "./useTagEvents";
+import { errorMessage } from "@/lib/errors";
+
+type Step = "idle" | "waiting-for-tag" | "erasing" | "done" | "error";
 
 /**
- * Erase / format screen (build-docs/features/nfc-tools.md EraseFormatScreen).
- * `@capgo/capacitor-nfc` has no standalone `format()` call — erase() writes
- * an empty NDEF message, which is the practical equivalent for the NTAG21x
- * tags MotoPulse supports. If the erased tag was a known MotoPulse tag, its
- * nfc_tags row is marked `erased` so a future tap of that token says "tag no
- * longer valid" instead of trying to log.
+ * Erase/format a tag. Scan + erase happen in ONE session; the previous
+ * two-session flow left the tag disconnected by the time erase() ran,
+ * producing a "connection lost" error on the hardware.
  */
-type Step = "idle" | "scanning" | "confirming" | "erasing" | "done" | "error";
-
 export function EraseFormatScreen() {
   const [step, setStep] = useState<Step>("idle");
   const [message, setMessage] = useState<string | null>(null);
-  const [pendingToken, setPendingToken] = useState<string | null>(null);
-  const [pendingUid, setPendingUid] = useState<string | null>(null);
 
-  const startScan = async () => {
-    setStep("scanning");
+  const start = async () => {
+    setStep("waiting-for-tag");
     setMessage(null);
     try {
-      const scan = await scanOnce();
-      setPendingUid(scan.uidHex);
-
-      const url = scan.tag.ndefMessage?.[0] ? decodeUriRecord(scan.tag.ndefMessage[0]) : null;
-      const token = url?.startsWith(MOTOPULSE_URL_PREFIX) ? url.slice(MOTOPULSE_URL_PREFIX.length) : null;
-      setPendingToken(token);
-
-      if (token) {
-        const row = await findTagByToken(token);
-        if (!row) setMessage("This looks like a MotoPulse tag but it isn't registered on this account.");
-      }
-      setStep("confirming");
-    } catch (err) {
-      setStep("error");
-      setMessage(errorMessage(err));
-    }
-  };
-
-  const confirmErase = async () => {
-    setStep("erasing");
-    try {
-      await eraseTag();
-      if (pendingToken) await markTagErased(pendingToken);
-      await logTagEvent({
-        tagToken: pendingToken,
-        eventType: "erased",
-        tagUid: pendingUid,
+      const { eraseToken, uidHex } = await runOnNextTag(async (scan) => {
+        const url = scan.tag.ndefMessage?.[0] ? decodeUriRecord(scan.tag.ndefMessage[0]) : null;
+        const token = url?.startsWith(MOTOPULSE_URL_PREFIX) ? url.slice(MOTOPULSE_URL_PREFIX.length) : null;
+        // Session still open — erase while tag is in contact.
+        await CapacitorNfc.erase();
+        return { eraseToken: token, uidHex: scan.uidHex };
       });
+
+      setStep("erasing");
+      if (eraseToken) {
+        const row = await findTagByToken(eraseToken);
+        if (row) await markTagErased(eraseToken);
+      }
+      await logTagEvent({ tagToken: eraseToken, eventType: "erased", tagUid: uidHex });
       setStep("done");
     } catch (err) {
       setStep("error");
@@ -60,35 +43,35 @@ export function EraseFormatScreen() {
   };
 
   return (
-    <div className="erase-format">
-      <h2>Erase / format tag</h2>
+    <div className="erase-format u-col u-gap-4">
+      <div>
+        <h2>Erase / format tag</h2>
+        <p className="u-ink-muted u-text-sm">
+          Clears the next tag you present. A registered MotoPulse tag will be
+          marked erased in your account so future taps of it do nothing.
+        </p>
+      </div>
+
       {step === "idle" && (
-        <button type="button" onClick={startScan}>
-          Scan the tag to erase
-        </button>
+        <Button variant="primary" onClick={() => void start()}>
+          <Icon name="nfc" size="sm"/> Scan tag and erase
+        </Button>
       )}
-      {step === "scanning" && <p>Hold the tag to the back of the phone...</p>}
-      {step === "confirming" && (
-        <div>
-          <p>
-            {pendingToken
-              ? "This is a registered MotoPulse tag. Erasing it will make future taps of it do nothing."
-              : "This tag's NDEF content will be cleared."}
-          </p>
-          {message && <p>{message}</p>}
-          <button type="button" onClick={confirmErase}>
-            Confirm erase
-          </button>
-        </div>
+      {step === "waiting-for-tag" && (
+        <p className="u-ink-muted u-text-sm">
+          Hold the tag against the back of the phone. Don&apos;t lift until it says &quot;Done&quot;.
+        </p>
       )}
-      {step === "erasing" && <p>Erasing...</p>}
-      {step === "done" && <p role="status">Tag erased.</p>}
+      {step === "erasing" && <p className="u-ink-muted u-text-sm">Updating your records…</p>}
+      {step === "done" && (
+        <p role="status" className="u-text-sm" style={{ color: "var(--status-good)" }}>
+          <Icon name="check" size="sm"/> Tag erased.
+        </p>
+      )}
       {step === "error" && (
-        <div role="alert">
-          <p>{message}</p>
-          <button type="button" onClick={startScan}>
-            Try again
-          </button>
+        <div role="alert" className="u-col u-gap-3">
+          <p className="u-text-sm" style={{ color: "var(--status-crit)" }}>{message}</p>
+          <div><Button variant="ghost" onClick={() => void start()}>Try again</Button></div>
         </div>
       )}
     </div>

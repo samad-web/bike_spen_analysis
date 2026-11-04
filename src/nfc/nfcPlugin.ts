@@ -82,6 +82,58 @@ export async function stopScan(): Promise<void> {
   await CapacitorNfc.stopScanning().catch(() => {});
 }
 
+/**
+ * Opens a scan session, runs `inSession` the moment the tag is detected,
+ * then closes the session. The crucial property vs. `scanOnce` + a separate
+ * write call: the NFC session stays OPEN across the whole callback, so the
+ * plugin's `.write()` / `.erase()` / `.makeReadOnly()` methods can operate
+ * on the tag the user is still holding against the phone.
+ *
+ * The previous flow (scan → confirm → write) broke on hardware because
+ * `stopScanning()` was called after the scan, leaving no active tag for
+ * the subsequent write. Any UI confirmation step must happen BEFORE the
+ * session is opened, not after.
+ */
+export async function runOnNextTag<T>(inSession: (result: ScanResult) => Promise<T>): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    let handle: { remove: () => Promise<void> } | undefined;
+    let done = false;
+    const cleanup = async () => {
+      await handle?.remove().catch(() => {});
+      await CapacitorNfc.stopScanning().catch(() => {});
+    };
+    const timeout = setTimeout(async () => {
+      if (done) return;
+      done = true;
+      await cleanup();
+      reject(new Error("No tag detected within 30s. Hold the tag steady against the back of the phone."));
+    }, 30_000);
+
+    CapacitorNfc.addListener("nfcEvent", async (event: NfcEvent) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timeout);
+      try {
+        // Session is STILL OPEN here — inSession can call write/erase/makeReadOnly.
+        const value = await inSession({ tag: event.tag, uidHex: toHex(event.tag.id ?? []) });
+        await cleanup();
+        resolve(value);
+      } catch (err) {
+        await cleanup();
+        reject(err);
+      }
+    })
+      .then((h) => {
+        handle = h;
+        return CapacitorNfc.startScanning();
+      })
+      .catch((err) => {
+        clearTimeout(timeout);
+        reject(err);
+      });
+  });
+}
+
 /** Writes a single URI record, overwriting whatever was on the tag.
  * `allowFormat: true` lets a blank/foreign NDEF-formattable tag be
  * provisioned in one step (gap analysis: no separate "format first" step

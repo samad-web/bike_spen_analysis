@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { errorMessage } from "@/lib/errors";
-import { scanOnce, writeTokenUrl, decodeUriRecord, MOTOPULSE_URL_PREFIX } from "./nfcPlugin";
+import { CapacitorNfc } from "@capgo/capacitor-nfc";
+import { Button, Icon } from "@/app/ui";
+import { buildTokenUrlRecord, decodeUriRecord, MOTOPULSE_URL_PREFIX, runOnNextTag } from "./nfcPlugin";
 import { checkTagCompatibility } from "./nfcCompat";
 import { findTagByToken, generateToken, markTagReplaced, registerToken } from "./tagRegistry";
 import { logTagEvent } from "./useTagEvents";
+import { errorMessage } from "@/lib/errors";
 
 interface Props {
   vehicleId: string;
@@ -11,82 +13,63 @@ interface Props {
   onWritten?: (token: string) => void;
 }
 
-type Step = "idle" | "scanning" | "confirming" | "writing" | "done" | "error";
+type Step = "idle" | "waiting-for-tag" | "writing" | "done" | "error";
 
-interface PendingScan {
-  uidHex: string;
-  tagType: string | null;
-  /** Set when the scanned tag already carries a MotoPulse token owned by a
-   * DIFFERENT vehicle — surfaced so the user can't silently steal a tag
-   * that's physically mounted on another bike (nfc-tools.md edge case). */
-  conflictingToken: string | null;
-}
-
-/** Mints a token and writes it to a scanned tag (build-docs/features/
- * nfc-tools.md WriteTagScreen). The DB row is only inserted AFTER the
- * on-device write succeeds (acceptance criterion: no orphan row if the app
- * is killed mid-write). */
+/**
+ * Write-tag flow. Scan AND write happen inside a SINGLE Capacitor NFC
+ * session; previously they were two sessions with a confirmation step in
+ * between — the tag was disconnected by the time write() was called, which
+ * the plugin reports as "connection lost".
+ *
+ * UX: user taps "Scan tag and write", session opens, write fires the moment
+ * the tag touches the phone. If a confirmation is needed (tag belongs to
+ * another vehicle), the error surfaces AFTER the attempt so the user never
+ * ends up in a lifted-phone-between-steps dead end.
+ */
 export function WriteTagScreen({ vehicleId, vehicleName, onWritten }: Props) {
   const [step, setStep] = useState<Step>("idle");
   const [message, setMessage] = useState<string | null>(null);
-  const [pending, setPending] = useState<PendingScan | null>(null);
 
-  const startScan = async () => {
-    setStep("scanning");
+  const start = async () => {
+    setStep("waiting-for-tag");
     setMessage(null);
     try {
-      const scan = await scanOnce();
-      const compat = checkTagCompatibility(scan.tag);
-      if (!compat.compatible) {
-        setStep("error");
-        setMessage(compat.reason ?? "Incompatible tag.");
-        await logTagEvent({
-          vehicleId,
-          eventType: "write_failed",
-          tagUid: scan.uidHex,
-          tagTechnology: scan.tag.type,
-          detail: { reason: compat.reason },
-        });
-        return;
-      }
-
-      const existingUrl = scan.tag.ndefMessage?.[0] ? decodeUriRecord(scan.tag.ndefMessage[0]) : null;
-      const existingToken = existingUrl?.startsWith(MOTOPULSE_URL_PREFIX)
-        ? existingUrl.slice(MOTOPULSE_URL_PREFIX.length)
-        : null;
-      const existingTag = existingToken ? await findTagByToken(existingToken) : null;
-
-      setPending({
-        uidHex: scan.uidHex,
-        tagType: scan.tag.type ?? null,
-        conflictingToken: existingTag && existingTag.vehicle_id !== vehicleId ? existingToken : null,
-      });
-      setStep("confirming");
-    } catch (err) {
-      setStep("error");
-      setMessage(errorMessage(err));
-    }
-  };
-
-  const confirmWrite = async () => {
-    if (!pending) return;
-    setStep("writing");
-    try {
       const token = generateToken();
-      await writeTokenUrl(token); // on-device write first
-      const registered = await registerToken(vehicleId, token); // DB row only after success
+      const newRecord = buildTokenUrlRecord(token);
 
-      if (pending.conflictingToken) {
-        await markTagReplaced(pending.conflictingToken);
-      }
+      const { tagUid, tagType, replacedToken } = await runOnNextTag(async (scan) => {
+        const compat = checkTagCompatibility(scan.tag);
+        if (!compat.compatible) throw new Error(compat.reason ?? "Incompatible tag.");
+
+        const existingUrl = scan.tag.ndefMessage?.[0] ? decodeUriRecord(scan.tag.ndefMessage[0]) : null;
+        const existingToken = existingUrl?.startsWith(MOTOPULSE_URL_PREFIX)
+          ? existingUrl.slice(MOTOPULSE_URL_PREFIX.length)
+          : null;
+        const existingTag = existingToken ? await findTagByToken(existingToken) : null;
+        if (existingTag && existingTag.vehicle_id !== vehicleId) {
+          throw new Error("This tag is registered to another vehicle. Use the Replace tab to reassign it.");
+        }
+
+        // Session still open — write now.
+        await CapacitorNfc.write({ allowFormat: true, records: [newRecord] });
+        return {
+          tagUid: scan.uidHex,
+          tagType: scan.tag.type ?? null,
+          replacedToken: existingTag ? existingToken : null,
+        };
+      });
+
+      setStep("writing");
+      const registered = await registerToken(vehicleId, token);
+      if (replacedToken) await markTagReplaced(replacedToken);
 
       await logTagEvent({
         tagToken: registered,
         vehicleId,
         eventType: "written",
-        tagUid: pending.uidHex,
-        tagTechnology: pending.tagType,
-        detail: { url: `${MOTOPULSE_URL_PREFIX}${registered}`, replacedToken: pending.conflictingToken },
+        tagUid,
+        tagTechnology: tagType,
+        detail: { url: `${MOTOPULSE_URL_PREFIX}${registered}`, replacedToken },
       });
 
       setStep("done");
@@ -94,42 +77,46 @@ export function WriteTagScreen({ vehicleId, vehicleName, onWritten }: Props) {
     } catch (err) {
       setStep("error");
       setMessage(errorMessage(err));
-      await logTagEvent({ vehicleId, eventType: "write_failed", tagUid: pending.uidHex, detail: { error: String(err) } });
+      await logTagEvent({ vehicleId, eventType: "write_failed", detail: { error: errorMessage(err) } });
     }
   };
 
   return (
-    <div className="write-tag">
-      <h2>Write a tag for {vehicleName}</h2>
+    <div className="write-tag u-col u-gap-4">
+      <div>
+        <h2>Write a tag for {vehicleName}</h2>
+        <p className="u-ink-muted u-text-sm">
+          A fresh token will be generated and written to the next tag you present.
+          Any existing content on the tag will be overwritten.
+        </p>
+      </div>
 
       {step === "idle" && (
-        <button type="button" onClick={startScan}>
-          Scan a blank or spare tag
-        </button>
+        <Button variant="primary" onClick={() => void start()}>
+          <Icon name="nfc" size="sm"/> Scan tag and write
+        </Button>
       )}
-      {step === "scanning" && <p>Hold the tag to the back of the phone...</p>}
-      {step === "confirming" && pending && (
-        <div>
-          <p>This will erase any existing content and write a new MotoPulse tag for {vehicleName}.</p>
-          {pending.conflictingToken && (
-            <p role="alert">
-              This tag is already registered to another vehicle. Continuing will unassign it there and reassign
-              it to {vehicleName}.
-            </p>
-          )}
-          <button type="button" onClick={confirmWrite}>
-            Confirm write
-          </button>
-        </div>
+
+      {step === "waiting-for-tag" && (
+        <p className="u-ink-muted u-text-sm">
+          Hold the tag flat against the back of the phone. Don't lift until it says "Done" — writing happens while the tag is still touching the phone.
+        </p>
       )}
-      {step === "writing" && <p>Writing...</p>}
-      {step === "done" && <p role="status">Tag written and registered to {vehicleName}.</p>}
+
+      {step === "writing" && (
+        <p className="u-ink-muted u-text-sm">Saving to your account…</p>
+      )}
+
+      {step === "done" && (
+        <p role="status" className="u-text-sm" style={{ color: "var(--status-good)" }}>
+          <Icon name="check" size="sm"/> Tag written and registered to {vehicleName}.
+        </p>
+      )}
+
       {step === "error" && (
-        <div role="alert">
-          <p>{message}</p>
-          <button type="button" onClick={startScan}>
-            Try again
-          </button>
+        <div role="alert" className="u-col u-gap-3">
+          <p className="u-text-sm" style={{ color: "var(--status-crit)" }}>{message}</p>
+          <div><Button variant="ghost" onClick={() => void start()}>Try again</Button></div>
         </div>
       )}
     </div>

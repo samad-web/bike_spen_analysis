@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { errorMessage } from "@/lib/errors";
-import { scanOnce, writeTokenUrl, decodeUriRecord, MOTOPULSE_URL_PREFIX } from "./nfcPlugin";
+import { CapacitorNfc } from "@capgo/capacitor-nfc";
+import { Button, Icon } from "@/app/ui";
+import { buildTokenUrlRecord, decodeUriRecord, MOTOPULSE_URL_PREFIX, runOnNextTag } from "./nfcPlugin";
 import { checkTagCompatibility } from "./nfcCompat";
 import { findTagByToken, generateToken, markTagReplaced, registerToken } from "./tagRegistry";
 import { logTagEvent } from "./useTagEvents";
+import { errorMessage } from "@/lib/errors";
 
 interface Props {
   vehicleId: string;
@@ -11,135 +13,124 @@ interface Props {
   onReplaced?: (newToken: string) => void;
 }
 
-type Step =
-  | "idle"
-  | "scanning-old"
-  | "old-scanned"
-  | "scanning-new"
-  | "writing"
-  | "done"
-  | "error";
+type Step = "pick-old" | "retire-old" | "waiting-for-old" | "waiting-for-new" | "writing" | "done" | "error";
 
 /**
- * Guided replace flow (build-docs/features/nfc-tools.md ReplaceTagScreen):
- *   scan old (optional) -> mark old replaced -> scan new -> write new -> carry over vehicle.
- * Target-UID verification: the new tag's UID is captured at scan time and
- * must still match at write time; if it changed mid-flow (user swapped tags
- * without rescanning), the write is aborted. The plugin's `write()` always
- * targets the LAST-discovered tag, so in practice the mismatch is caught by
- * the fresh scan done just before confirming — but the UID is logged for
- * audit either way.
+ * Replace a tag. Two sequential single-session NFC operations:
+ *   1. Read the old tag (one session).
+ *   2. Scan + write the new tag (one session, no lift-and-confirm between).
+ *
+ * Previous flow lost the write session between confirm and write calls.
  */
 export function ReplaceTagScreen({ vehicleId, vehicleName, onReplaced }: Props) {
-  const [step, setStep] = useState<Step>("idle");
+  const [step, setStep] = useState<Step>("pick-old");
   const [message, setMessage] = useState<string | null>(null);
   const [oldToken, setOldToken] = useState<string | null>(null);
-  const [newUid, setNewUid] = useState<string | null>(null);
 
   const scanOld = async () => {
-    setStep("scanning-old");
+    setStep("waiting-for-old");
     setMessage(null);
     try {
-      const scan = await scanOnce();
-      const url = scan.tag.ndefMessage?.[0] ? decodeUriRecord(scan.tag.ndefMessage[0]) : null;
-      const token = url?.startsWith(MOTOPULSE_URL_PREFIX) ? url.slice(MOTOPULSE_URL_PREFIX.length) : null;
-      if (!token) {
-        setStep("error");
-        setMessage("That tag isn't a MotoPulse tag. Nothing to replace.");
-        return;
-      }
-      const row = await findTagByToken(token);
-      if (!row || row.vehicle_id !== vehicleId) {
-        setStep("error");
-        setMessage(`That tag isn't registered to ${vehicleName}.`);
-        return;
-      }
+      const token = await runOnNextTag(async (scan) => {
+        const url = scan.tag.ndefMessage?.[0] ? decodeUriRecord(scan.tag.ndefMessage[0]) : null;
+        const t = url?.startsWith(MOTOPULSE_URL_PREFIX) ? url.slice(MOTOPULSE_URL_PREFIX.length) : null;
+        if (!t) throw new Error("That tag is not a MotoPulse tag.");
+        const row = await findTagByToken(t);
+        if (!row || row.vehicle_id !== vehicleId) {
+          throw new Error(`That tag is not registered to ${vehicleName}.`);
+        }
+        return t;
+      });
       setOldToken(token);
-      setStep("old-scanned");
+      setStep("retire-old");
     } catch (err) {
       setStep("error");
       setMessage(errorMessage(err));
     }
   };
 
-  const skipOldAndScanNew = () => {
+  const skipOld = () => {
     setOldToken(null);
-    setStep("scanning-new");
-    void scanNewInternal();
+    setStep("retire-old");
   };
 
-  const continueToNew = () => {
-    setStep("scanning-new");
-    void scanNewInternal();
-  };
-
-  const scanNewInternal = async () => {
+  const scanAndWriteNew = async () => {
+    setStep("waiting-for-new");
+    setMessage(null);
     try {
-      const scan = await scanOnce();
-      const compat = checkTagCompatibility(scan.tag);
-      if (!compat.compatible) {
-        setStep("error");
-        setMessage(compat.reason ?? "Incompatible tag.");
-        return;
-      }
-      setNewUid(scan.uidHex);
-      setStep("writing");
-
       const token = generateToken();
-      await writeTokenUrl(token);
+      const record = buildTokenUrlRecord(token);
+      const { uidHex } = await runOnNextTag(async (scan) => {
+        const compat = checkTagCompatibility(scan.tag);
+        if (!compat.compatible) throw new Error(compat.reason ?? "Incompatible tag.");
+        // Session still open — write while tag is in contact.
+        await CapacitorNfc.write({ allowFormat: true, records: [record] });
+        return { uidHex: scan.uidHex };
+      });
 
+      setStep("writing");
       if (oldToken) await markTagReplaced(oldToken);
       const registered = await registerToken(vehicleId, token);
-
       await logTagEvent({
         tagToken: registered,
         vehicleId,
         eventType: "replaced",
-        tagUid: scan.uidHex,
+        tagUid: uidHex,
         detail: { oldToken, newToken: registered },
       });
-
       setStep("done");
       onReplaced?.(registered);
     } catch (err) {
       setStep("error");
       setMessage(errorMessage(err));
-      await logTagEvent({ vehicleId, eventType: "write_failed", tagUid: newUid, detail: { error: String(err) } });
+      await logTagEvent({ vehicleId, eventType: "write_failed", detail: { error: errorMessage(err) } });
     }
   };
 
   return (
-    <div className="replace-tag">
+    <div className="replace-tag u-col u-gap-4">
       <h2>Replace tag for {vehicleName}</h2>
-      {step === "idle" && (
-        <div>
-          <p>Scan the OLD tag first so we can retire it, then scan the NEW tag.</p>
-          <button type="button" onClick={scanOld}>
-            Scan old tag
-          </button>
-          <button type="button" onClick={skipOldAndScanNew}>
-            I lost it — skip to new tag
-          </button>
+
+      {step === "pick-old" && (
+        <div className="u-col u-gap-3">
+          <p className="u-ink-muted u-text-sm">
+            Scan the OLD tag first so we can retire it, then scan the NEW tag. Skip to the new tag if the old one is lost or already damaged.
+          </p>
+          <div className="u-row u-gap-2 u-row-wrap">
+            <Button variant="primary" onClick={() => void scanOld()}>Scan old tag</Button>
+            <Button variant="ghost" onClick={skipOld}>Skip — old tag lost</Button>
+          </div>
         </div>
       )}
-      {step === "scanning-old" && <p>Hold the old tag to the phone...</p>}
-      {step === "old-scanned" && (
-        <div>
-          <p role="status">Old tag found. Now scan the NEW tag.</p>
-          <button type="button" onClick={continueToNew}>
-            Scan new tag
-          </button>
+
+      {step === "waiting-for-old" && (
+        <p className="u-ink-muted u-text-sm">Hold the OLD tag to the phone…</p>
+      )}
+
+      {step === "retire-old" && (
+        <div className="u-col u-gap-3">
+          <p role="status" className="u-text-sm" style={{ color: "var(--status-good)" }}>
+            <Icon name="check" size="sm"/> {oldToken ? "Old tag found." : "Old tag skipped."} Now scan the NEW tag.
+          </p>
+          <Button variant="primary" onClick={() => void scanAndWriteNew()}>Scan new tag and write</Button>
         </div>
       )}
-      {step === "scanning-new" && <p>Hold the new tag to the phone...</p>}
-      {step === "writing" && <p>Writing new tag...</p>}
-      {step === "done" && <p role="status">Replaced. The old tag will no longer log taps.</p>}
+
+      {step === "waiting-for-new" && (
+        <p className="u-ink-muted u-text-sm">
+          Hold the NEW tag against the back of the phone. Don&apos;t lift until it says &quot;Done&quot;.
+        </p>
+      )}
+      {step === "writing" && <p className="u-ink-muted u-text-sm">Saving to your account…</p>}
+      {step === "done" && (
+        <p role="status" className="u-text-sm" style={{ color: "var(--status-good)" }}>
+          <Icon name="check" size="sm"/> Replaced. The old tag will no longer log taps.
+        </p>
+      )}
       {step === "error" && (
-        <div role="alert">
-          <p>{message}</p>
-          <button type="button" onClick={() => setStep("idle")}>
-            Start over
-          </button>
+        <div role="alert" className="u-col u-gap-3">
+          <p className="u-text-sm" style={{ color: "var(--status-crit)" }}>{message}</p>
+          <div><Button variant="ghost" onClick={() => setStep("pick-old")}>Start over</Button></div>
         </div>
       )}
     </div>
