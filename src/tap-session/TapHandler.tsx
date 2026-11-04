@@ -51,6 +51,24 @@ export function TapHandler() {
 
   useAppLinkListener(handleToken);
 
+  // Listen for in-app / QR scan tapToken events dispatched from router or scanner
+  useEffect(() => {
+    const onCustom = (e: Event) => {
+      const custom = e as CustomEvent<string>;
+      if (custom.detail) void handleToken(custom.detail);
+    };
+    window.addEventListener("motopulse:tapToken", onCustom);
+    return () => window.removeEventListener("motopulse:tapToken", onCustom);
+  }, [handleToken]);
+
+  // Initial load on /v/:token in browser
+  useEffect(() => {
+    const match = window.location.pathname.match(/^\/v\/([A-Za-z0-9_-]+)/);
+    if (match) {
+      void handleToken(match[1]);
+    }
+  }, [handleToken]);
+
   // Replay any logged-out tap once the user signs in (gap analysis "should
   // fix": tap-while-logged-out resumes after login).
   useEffect(() => {

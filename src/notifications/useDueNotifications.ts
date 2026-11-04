@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/auth/AuthContext";
 import { fireDueNotifications, pickDueItems } from "./dueNotifications";
@@ -66,4 +66,65 @@ export function useDueNotifications() {
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, [session?.user.id]);
+}
+
+/** Hook returning current count of overdue maintenance and expiring documents. */
+export function useDueCount() {
+  const { session } = useAuth();
+  const [count, setCount] = useState<number>(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!session?.user.id) {
+      setCount(0);
+      setLoading(false);
+      return;
+    }
+
+    let active = true;
+    const fetchCount = async () => {
+      try {
+        const [reminders, documents] = await Promise.all([
+          supabase.from("maintenance_reminders")
+            .select("id, vehicle_id, label, schedule_type, interval_km, interval_days, last_done_date, last_done_odometer, notes")
+            .is("deleted_at", null),
+          supabase.from("vehicle_documents")
+            .select("id, vehicle_id, doc_type, label, storage_path, mime_type, file_size_bytes, expires_on, issued_on, created_at")
+            .is("deleted_at", null),
+        ]);
+
+        const latestOdo: Record<string, number | null> = {};
+        const { data: odoRows } = await supabase.from("expenses")
+          .select("vehicle_id, odometer_reading, expense_date")
+          .not("odometer_reading", "is", null)
+          .is("deleted_at", null)
+          .order("expense_date", { ascending: false });
+        for (const row of odoRows ?? []) {
+          if (!(row.vehicle_id in latestOdo)) latestOdo[row.vehicle_id] = row.odometer_reading;
+        }
+
+        const items = pickDueItems({
+          reminders: (reminders.data ?? []).map((r) => ({ ...r })),
+          documents: (documents.data ?? []).map((d) => ({ ...d })),
+          currentOdometerByVehicle: latestOdo,
+        });
+
+        if (active) setCount(items.length);
+      } catch {
+        /* best effort */
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    void fetchCount();
+    const onFocus = () => void fetchCount();
+    window.addEventListener("focus", onFocus);
+    return () => {
+      active = false;
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [session?.user.id]);
+
+  return { count, loading };
 }

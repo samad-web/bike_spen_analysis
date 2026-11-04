@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import QRCode from "qrcode";
 import { Button, Card, Icon } from "@/app/ui";
 import { buildUpiUrl, useDonationConfig } from "./useDonationConfig";
 
 /** Public donation page. Reads the UPI id from `app_settings.donation`
  *  (set by a superadmin). Renders a UPI QR + "Copy UPI id" + preset chips. */
-export function DonateScreen() {
+export function DonateScreen({ publicView }: { publicView?: boolean }) {
   const { config, loading } = useDonationConfig();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [amount, setAmount] = useState<number | undefined>(undefined);
@@ -30,6 +31,13 @@ export function DonateScreen() {
 
   if (!upi) return (
     <div className="u-col u-gap-5">
+      {publicView && (
+        <div>
+          <Link to="/" className="u-row u-gap-2 u-ink-muted u-text-sm" style={{ display: "inline-flex" }}>
+            <Icon name="arrow_left" size="sm"/> Sign in to MotoPulse
+          </Link>
+        </div>
+      )}
       <header className="page-head">
         <div>
           <h1>Support MotoPulse</h1>
@@ -57,6 +65,13 @@ export function DonateScreen() {
 
   return (
     <div className="u-col u-gap-5">
+      {publicView && (
+        <div>
+          <Link to="/" className="u-row u-gap-2 u-ink-muted u-text-sm" style={{ display: "inline-flex" }}>
+            <Icon name="arrow_left" size="sm"/> Sign in to MotoPulse
+          </Link>
+        </div>
+      )}
       <header className="page-head">
         <div>
           <h1>Support MotoPulse</h1>

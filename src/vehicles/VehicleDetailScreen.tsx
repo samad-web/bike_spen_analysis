@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useVehicles } from "./useVehicles";
-import { useExpenses } from "@/expenses/useExpenses";
+import { useExpenses, type Expense } from "@/expenses/useExpenses";
 import { QuickLogForm } from "@/expenses/QuickLogForm";
 import { VehiclePhotoSheet } from "./VehiclePhotoSheet";
+import { EditVehicleSheet } from "./EditVehicleSheet";
 import { MaintenanceReminders } from "@/maintenance/MaintenanceReminders";
 import { DocumentsCard } from "@/documents/DocumentsCard";
 import { Button, Card, Chip, Icon, Sheet, StatTile } from "@/app/ui";
@@ -13,10 +14,14 @@ import { computeMileageSeries, summarizeMileage } from "@/analytics/fuelEconomy"
 
 export function VehicleDetailScreen() {
   const { vehicleId } = useParams<{ vehicleId: string }>();
-  const { vehicles } = useVehicles();
+  const navigate = useNavigate();
+  const { vehicles, updateVehicle, deleteVehicle } = useVehicles();
   const { expenses, deleteExpense, loading } = useExpenses(vehicleId ?? null);
   const [logOpen, setLogOpen] = useState(false);
   const [photoOpen, setPhotoOpen] = useState(false);
+  const [editVehicleOpen, setEditVehicleOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
 
   const vehicle = vehicles.find((v) => v.id === vehicleId);
   const totals = useMemo(() => {
@@ -91,6 +96,12 @@ export function VehicleDetailScreen() {
         <Link to={`/nfc-tools?vehicle=${vehicle.id}`} className="pill-btn is-active">
           <Icon name="nfc" size="sm"/>NFC tools
         </Link>
+        <Button variant="ghost" onClick={() => setEditVehicleOpen(true)}>
+          <Icon name="settings" size="sm"/>Edit details
+        </Button>
+        <Button variant="danger" onClick={() => setDeleteConfirmOpen(true)}>
+          <Icon name="trash" size="sm"/>Delete vehicle
+        </Button>
       </div>
 
       <MaintenanceReminders vehicleId={vehicle.id} vehicleName={vehicle.name} lastOdometer={totals.lastOdo}/>
@@ -120,6 +131,10 @@ export function VehicleDetailScreen() {
                 </div>
                 <div className="u-row u-gap-2">
                   <strong className="list__row-value">{formatCurrency(e.total_amount)}</strong>
+                  <button type="button" onClick={() => setEditingExpense(e)}
+                    className="btn btn--ghost btn--sm btn--icon" aria-label="Edit">
+                    <Icon name="wrench" size="sm"/>
+                  </button>
                   <button type="button" onClick={() => void deleteExpense(e.id)}
                     className="btn btn--ghost btn--sm btn--icon" aria-label="Delete">
                     <Icon name="trash" size="sm"/>
@@ -136,7 +151,34 @@ export function VehicleDetailScreen() {
           <QuickLogForm vehicleId={vehicle.id} vehicleName={vehicle.name} onDone={() => setLogOpen(false)}/>
         </Sheet>
       )}
+      {editingExpense && (
+        <Sheet onClose={() => setEditingExpense(null)}>
+          <QuickLogForm vehicleId={vehicle.id} vehicleName={vehicle.name} initialExpense={editingExpense} onDone={() => setEditingExpense(null)}/>
+        </Sheet>
+      )}
       {photoOpen && <VehiclePhotoSheet vehicleId={vehicle.id} vehicleName={vehicle.name} onClose={() => setPhotoOpen(false)}/>}
+      {editVehicleOpen && (
+        <EditVehicleSheet vehicle={vehicle} onClose={() => setEditVehicleOpen(false)} onSave={updateVehicle}/>
+      )}
+      {deleteConfirmOpen && (
+        <Sheet onClose={() => setDeleteConfirmOpen(false)} title="Delete vehicle" subtitle="This will remove the vehicle from your garage.">
+          <p className="u-text-sm">
+            Are you sure you want to delete <strong>{vehicle.name}</strong>?
+          </p>
+          <p className="u-text-xs u-ink-muted">
+            All logged expenses and service history for this vehicle will remain preserved in your totals and analytics.
+          </p>
+          <div className="sheet__actions">
+            <Button variant="ghost" onClick={() => setDeleteConfirmOpen(false)}>Cancel</Button>
+            <Button variant="danger" onClick={async () => {
+              const res = await deleteVehicle(vehicle.id);
+              if (!res.error) navigate("/vehicles");
+            }}>
+              Confirm delete
+            </Button>
+          </div>
+        </Sheet>
+      )}
     </div>
   );
 }

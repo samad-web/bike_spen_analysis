@@ -199,7 +199,9 @@ export function NfcToolsScreen() {
       )}
 
       {scannerOpen && <QrScannerSheet onClose={() => setScannerOpen(false)}
-        onToken={(token) => { window.location.href = `/v/${token}`; }}/>
+        onToken={(token) => {
+          window.dispatchEvent(new CustomEvent("motopulse:tapToken", { detail: token }));
+        }}/>
       }
     </div>
   );

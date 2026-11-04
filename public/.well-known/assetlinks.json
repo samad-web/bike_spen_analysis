@@ -1,0 +1,13 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.motopulse.android",
+      "sha256_cert_fingerprints": [
+        "46:0C:A1:06:50:59:62:F9:57:7E:9D:BC:EB:8F:C1:35:E2:76:6E:2E:ED:B3:6E:22:36:1B:77:AD:1D:D2:46:41"
+      ]
+    }
+  }
+]
+

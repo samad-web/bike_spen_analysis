@@ -89,6 +89,7 @@ export function SignInScreen() {
   const showEmailError = touched.email && emailErrors.length > 0;
   const showPwError = mode === "signup" && touched.password && !pwCheck.ok;
   const showConfirmError = mode === "signup" && touched.confirm && !confirmOk;
+  const referredBy = typeof window !== "undefined" ? localStorage.getItem("motopulse:referred_by") : null;
 
   return (
     <div className="signin">
@@ -122,6 +123,12 @@ export function SignInScreen() {
         <div className="signin__form">
           <h2 className="signin__form-title">{title}</h2>
           <p className="signin__form-sub">{sub}</p>
+
+          {referredBy && mode === "signup" && (
+            <div className="chip chip--accent" style={{ marginBottom: "var(--s-3)", alignSelf: "flex-start" }}>
+              <Icon name="share" size="sm"/> Invited with referral {referredBy}
+            </div>
+          )}
 
           <label htmlFor="email">Email</label>
           <input

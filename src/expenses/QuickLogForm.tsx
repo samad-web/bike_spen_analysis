@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useExpenses, getLastAmount } from "./useExpenses";
+import { useExpenses, getLastAmount, type Expense } from "./useExpenses";
 import { useVehicles } from "@/vehicles/useVehicles";
 import { Button, Icon } from "@/app/ui";
 import type { PaymentMethod } from "@/lib/offline-queue";
@@ -18,20 +18,32 @@ const PAYMENT_METHODS: { key: PaymentMethod; label: string }[] = [
 interface Props {
   vehicleId: string;
   vehicleName: string;
+  initialExpense?: Expense;
   onDone?: () => void;
 }
 
 const LAST_PM_KEY = "motopulse:lastPaymentMethod";
 
-export function QuickLogForm({ vehicleId, vehicleName, onDone }: Props) {
+export function QuickLogForm({ vehicleId, vehicleName, initialExpense, onDone }: Props) {
   const { saveExpense, deleteExpense } = useExpenses(vehicleId);
   const { vehicles } = useVehicles();
   const vehicle = vehicles.find((v) => v.id === vehicleId);
   const fuelUnit = unitForVehicle(vehicle?.fuel_type ?? null);
-  const [category, setCategory] = useState<"fuel" | "maintenance">("fuel");
-  const [amount, setAmount] = useState(() => getLastAmount(vehicleId, "fuel")?.toString() ?? "");
-  const [litres, setLitres] = useState("");
-  const [odometer, setOdometer] = useState("");
+  const isEditing = Boolean(initialExpense);
+
+  const [category, setCategory] = useState<"fuel" | "maintenance">(initialExpense?.category ?? "fuel");
+  const [amount, setAmount] = useState(() =>
+    initialExpense ? initialExpense.total_amount.toString() : (getLastAmount(vehicleId, "fuel")?.toString() ?? "")
+  );
+  const [litres, setLitres] = useState(() =>
+    initialExpense?.litres != null ? initialExpense.litres.toString() : ""
+  );
+  const [odometer, setOdometer] = useState(() =>
+    initialExpense?.odometer_reading != null ? initialExpense.odometer_reading.toString() : ""
+  );
+  const [expenseDate, setExpenseDate] = useState(() =>
+    initialExpense?.expense_date ?? new Date().toISOString().slice(0, 10)
+  );
   const [itemLabel, setItemLabel] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(() => {
     try { return (localStorage.getItem(LAST_PM_KEY) as PaymentMethod) ?? "upi"; } catch { return "upi"; }
@@ -41,7 +53,9 @@ export function QuickLogForm({ vehicleId, vehicleName, onDone }: Props) {
 
   const switchCategory = (next: "fuel" | "maintenance") => {
     setCategory(next);
-    setAmount(getLastAmount(vehicleId, next)?.toString() ?? "");
+    if (!isEditing) {
+      setAmount(getLastAmount(vehicleId, next)?.toString() ?? "");
+    }
   };
 
   const choosePayment = (m: PaymentMethod) => {
@@ -54,7 +68,7 @@ export function QuickLogForm({ vehicleId, vehicleName, onDone }: Props) {
     if (!total || total < 0) return;
 
     setSaving(true);
-    const id = crypto.randomUUID();
+    const id = initialExpense?.id ?? crypto.randomUUID();
     await saveExpense({
       p_id: id,
       p_vehicle_id: vehicleId,
@@ -62,15 +76,17 @@ export function QuickLogForm({ vehicleId, vehicleName, onDone }: Props) {
       p_total_amount: total,
       p_litres: category === "fuel" && litres ? Number(litres) : null,
       p_odometer_reading: odometer ? Number(odometer) : null,
-      p_expense_date: new Date().toISOString().slice(0, 10),
-      p_notes: null,
+      p_expense_date: expenseDate,
+      p_notes: initialExpense?.notes ?? null,
       p_items: category === "maintenance" && itemLabel ? [{ label: itemLabel, amount: total }] : null,
       p_payment_method: paymentMethod,
       p_fuel_unit: fuelUnit,
     });
     setSaving(false);
-    setUndoState({ id });
-    setTimeout(() => setUndoState((cur) => (cur?.id === id ? null : cur)), 6000);
+    if (!isEditing) {
+      setUndoState({ id });
+      setTimeout(() => setUndoState((cur) => (cur?.id === id ? null : cur)), 6000);
+    }
     onDone?.();
   };
 
@@ -83,8 +99,8 @@ export function QuickLogForm({ vehicleId, vehicleName, onDone }: Props) {
   return (
     <div className="u-col u-gap-4" role="form" aria-label={`Log expense for ${vehicleName}`}>
       <div>
-        <h3 className="sheet__title">Log for {vehicleName}</h3>
-        <p className="sheet__subtitle">Takes two taps at the pump.</p>
+        <h3 className="sheet__title">{isEditing ? `Edit entry for ${vehicleName}` : `Log for ${vehicleName}`}</h3>
+        <p className="sheet__subtitle">{isEditing ? "Update details and save changes." : "Takes two taps at the pump."}</p>
       </div>
 
       <div className="u-row u-gap-2">
@@ -147,8 +163,16 @@ export function QuickLogForm({ vehicleId, vehicleName, onDone }: Props) {
           value={odometer} onChange={(e) => setOdometer(e.target.value)}/>
       </div>
 
+      {isEditing && (
+        <div>
+          <label htmlFor="exp-date">Date</label>
+          <input id="exp-date" type="date"
+            value={expenseDate} onChange={(e) => setExpenseDate(e.target.value)}/>
+        </div>
+      )}
+
       <Button variant="primary" onClick={handleSave} disabled={saving || !amount}>
-        {saving ? "Saving…" : "Save"}
+        {saving ? "Saving…" : isEditing ? "Save changes" : "Save"}
         <Icon name="check" size="sm"/>
       </Button>
 

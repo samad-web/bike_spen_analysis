@@ -62,7 +62,7 @@ export function Button({
   iconOnly,
 }: {
   children: ReactNode;
-  variant?: "primary" | "ghost" | "dark";
+  variant?: "primary" | "ghost" | "dark" | "danger";
   size?: "md" | "sm";
   onClick?: () => void;
   type?: "button" | "submit";
@@ -74,6 +74,7 @@ export function Button({
     "btn",
     variant === "primary" ? "btn--primary" : "",
     variant === "ghost"   ? "btn--ghost"   : "",
+    variant === "danger"  ? "btn--danger"  : "",
     size === "sm" ? "btn--sm" : "",
     iconOnly ? "btn--icon" : "",
     className,
@@ -214,6 +215,7 @@ const ICONS = {
   menu:        <><path d="M4 6h16M4 12h16M4 18h16"/></>,
   close:       <><path d="M18 6 6 18M6 6l12 12"/></>,
   download:    <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></>,
+  share:       <><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.59 13.51 6.83 3.98M15.41 6.51l-6.82 3.98"/></>,
   arrow_up:    <><path d="M12 19V5M5 12l7-7 7 7"/></>,
   arrow_down:  <><path d="M12 5v14M19 12l-7 7-7-7"/></>,
 };

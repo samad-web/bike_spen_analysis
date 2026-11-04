@@ -28,7 +28,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
-      if (newSession) void flushQueue();
+      if (newSession) {
+        void flushQueue();
+        void attachStashedReferral(newSession.user.id);
+      }
     });
     return () => sub.subscription.unsubscribe();
   }, []);
@@ -83,4 +86,26 @@ export function useAuth(): AuthState {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error("useAuth must be used inside <AuthProvider>");
   return ctx;
+}
+
+async function attachStashedReferral(userId: string) {
+  try {
+    const code = localStorage.getItem("motopulse:referred_by");
+    if (!code) return;
+    const { data } = await supabase
+      .from("user_profiles")
+      .select("referred_by_code")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (data && !data.referred_by_code) {
+      await supabase
+        .from("user_profiles")
+        .update({ referred_by_code: code })
+        .eq("user_id", userId);
+    }
+    localStorage.removeItem("motopulse:referred_by");
+  } catch {
+    /* best effort */
+  }
 }

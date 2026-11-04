@@ -16,6 +16,7 @@ import {
 } from "./computeAnalytics";
 import { computeMileageSeries, summarizeMileage } from "./fuelEconomy";
 import { downloadCsv, downloadPdfReport, expensesToCsv, type ExportableExpense } from "./exportReports";
+import { RideCalendar } from "@/calendar/RideCalendar";
 
 interface AnalyticsExpense extends ExpenseRow {
   payment_method: "cash" | "card" | "upi" | "wallet" | "net_banking" | "other";
@@ -237,6 +238,10 @@ export function AnalyticsScreen() {
               ))}
             </ul>
           </Card>
+
+          <div className="bento__12">
+            <RideCalendar />
+          </div>
 
           {vehicles.length > 1 && (
             <Card className="bento__6">

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { useVehicles, type Vehicle } from "@/vehicles/useVehicles";
 import { useAuth } from "@/auth/AuthContext";
@@ -12,6 +12,9 @@ import {
   type ExpenseRow,
   type RideLogRow,
 } from "@/analytics/computeAnalytics";
+import { useDueCount } from "@/notifications/useDueNotifications";
+import { getNfcHardwareStatus } from "@/nfc/nfcPlugin";
+import { TodayRideWidget } from "@/calendar/RideCalendar";
 
 interface ExpenseWithPayment extends ExpenseRow {
   payment_method: "cash" | "card" | "upi" | "wallet" | "net_banking" | "other";
@@ -20,10 +23,19 @@ interface ExpenseWithPayment extends ExpenseRow {
 
 export function DashboardScreen() {
   const { session } = useAuth();
+  const navigate = useNavigate();
   const { vehicles } = useVehicles();
+  const { count: dueCount } = useDueCount();
+  const [nfcDisabled, setNfcDisabled] = useState(false);
   const [expenses, setExpenses] = useState<ExpenseWithPayment[]>([]);
   const [rides, setRides] = useState<RideLogRow[]>([]);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getNfcHardwareStatus()
+      .then((s) => setNfcDisabled(s === "disabled"))
+      .catch(() => setNfcDisabled(false));
+  }, []);
 
   useEffect(() => {
     void (async () => {
@@ -90,9 +102,28 @@ export function DashboardScreen() {
           <h1>{emailName(session?.user.email)}</h1>
         </div>
         <div className="page-head__actions">
-          <Chip variant="default"><Icon name="bell" size="sm"/>0 due</Chip>
+          <Link to="/vehicles" style={{ textDecoration: "none" }}>
+            <Chip variant={dueCount > 0 ? "accent" : "default"}>
+              <Icon name="bell" size="sm"/>
+              {dueCount} due
+            </Chip>
+          </Link>
         </div>
       </header>
+
+      {nfcDisabled && (
+        <div className="card" style={{ background: "rgba(239, 68, 68, 0.12)", border: "1px solid var(--status-crit)", padding: "var(--s-3) var(--s-4)" }}>
+          <div className="u-row u-gap-3">
+            <Icon name="nfc" size="md" />
+            <div className="u-grow">
+              <strong style={{ color: "var(--status-crit)" }}>NFC is turned off</strong>
+              <p className="u-text-xs u-ink-muted" style={{ margin: "2px 0 0" }}>
+                Enable NFC in your Android settings to tap-to-log at the pump.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="bento">
         {/* Hero: this month's spend */}
@@ -117,6 +148,9 @@ export function DashboardScreen() {
           <StatTile label="Vehicles" value={String(vehicles.length)} />
           <StatTile label="Fuel entries" value={String(expenses.filter((e) => e.category === "fuel").length)} />
         </div>
+
+        {/* Today's Ride Planner Widget */}
+        <TodayRideWidget onOpenCalendar={() => navigate("/analytics")} />
 
         {/* Trend row: 6 + 6 */}
         <Card className="bento__6">

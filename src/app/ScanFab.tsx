@@ -21,7 +21,9 @@ export function ScanFab() {
         <span>Scan</span>
       </button>
       {open && <QrScannerSheet onClose={() => setOpen(false)}
-        onToken={(token) => { window.location.href = `/v/${token}`; }}/>}
+        onToken={(token) => {
+          window.dispatchEvent(new CustomEvent("motopulse:tapToken", { detail: token }));
+        }}/>}
     </>
   );
 }
