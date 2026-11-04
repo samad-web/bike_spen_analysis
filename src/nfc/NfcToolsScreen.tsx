@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useVehicles } from "@/vehicles/useVehicles";
 import { TagInfoScreen } from "./TagInfoScreen";
 import { WriteTagScreen } from "./WriteTagScreen";
@@ -16,18 +16,20 @@ type Mode = "nfc" | "qr";
 type Tab = "scan" | "write" | "erase" | "replace" | "history" | "advanced";
 
 /**
- * Unified NFC/QR tools surface. The top segmented control picks the mode
- * (NFC chip vs. printed QR); each tab adapts to it:
- *   - Scan     — Tag info (NFC) OR open camera scanner (QR)
- *   - Write    — write an NDEF URL to the chip, OR generate+print a QR
- *   - Erase    — NFC-only (QR has nothing to erase; you'd just print a new one)
- *   - Replace  — NFC-only
- *   - History  — same event log for both modes
- *   - Advanced — NFC-only (permanent lock)
+ * Unified NFC / QR tools surface.
+ *
+ * Mode toggle is ALWAYS enabled — a previous iteration disabled the NFC
+ * button when hardware wasn't detected, which trapped web users on QR mode
+ * with no way back. Now both buttons work; a banner explains the hardware
+ * situation.
+ *
+ * Hardware status check is wrapped in try/catch — on the web the Capacitor
+ * NFC plugin throws on plugin-not-available, which previously left `status`
+ * stuck on "unknown" and mis-rendered the banners.
  */
 export function NfcToolsScreen() {
   const [params, setParams] = useSearchParams();
-  const { vehicles } = useVehicles();
+  const { vehicles, loading: vehiclesLoading } = useVehicles();
   const [mode, setMode] = useState<Mode>("nfc");
   const [tab, setTab] = useState<Tab>("scan");
   const [status, setStatus] = useState<NfcHardwareStatus>("unknown");
@@ -37,23 +39,28 @@ export function NfcToolsScreen() {
   const vehicle = vehicles.find((v) => v.id === vehicleId);
 
   useEffect(() => {
-    void getNfcHardwareStatus().then((s) => {
-      setStatus(s);
-      // Auto-pick QR mode if there's no NFC hardware so the user is never
-      // stuck on an unusable tab.
-      if (s === "no_hardware") setMode("qr");
-    });
+    void (async () => {
+      try {
+        const s = await getNfcHardwareStatus();
+        setStatus(s);
+        if (s === "no_hardware") setMode("qr");
+      } catch {
+        // Web build: the Capacitor NFC plugin isn't registered. Pretend
+        // hardware is absent and auto-pick QR — the user can still flip
+        // the toggle to see what NFC tabs look like.
+        setStatus("no_hardware");
+        setMode("qr");
+      }
+    })();
   }, []);
 
   const needsVehicle: Tab[] = ["write", "replace", "history"];
-
-  // Which tabs are available in each mode. QR gets scan/write/history only.
   const tabsForMode: Record<Mode, Tab[]> = {
     nfc: ["scan", "write", "erase", "replace", "history", "advanced"],
     qr:  ["scan", "write", "history"],
   };
   const availableTabs = tabsForMode[mode];
-  const activeTab = availableTabs.includes(tab) ? tab : "scan";
+  const activeTab: Tab = availableTabs.includes(tab) ? tab : "scan";
 
   return (
     <div className="u-col u-gap-5">
@@ -71,15 +78,14 @@ export function NfcToolsScreen() {
         </div>
       </header>
 
-      {/* Mode toggle — the single segmented control that reshapes the surface. */}
+      {/* Mode toggle — ALWAYS enabled. */}
       <Card>
-        <div className="u-row u-row-between">
-          <h3 style={{ marginBottom: 4 }}>Mode</h3>
+        <div className="u-row u-row-between u-row-wrap u-gap-3">
+          <h3>Mode</h3>
           <div className="u-row u-gap-2">
             <button type="button"
               onClick={() => setMode("nfc")}
-              className={"pill-btn " + (mode === "nfc" ? "is-active" : "")}
-              disabled={status === "no_hardware"}>
+              className={"pill-btn " + (mode === "nfc" ? "is-active" : "")}>
               <Icon name="nfc" size="sm"/> NFC chip
             </button>
             <button type="button"
@@ -99,75 +105,102 @@ export function NfcToolsScreen() {
       {status === "no_hardware" && mode === "nfc" && (
         <Card>
           <p role="alert" className="u-text-sm">
-            This device has no NFC hardware — switched to QR mode automatically. QR works on every phone.
+            <strong>NFC isn't available here.</strong> On the web build the Capacitor NFC plugin isn't registered.
+            Install the MotoPulse Android APK to use NFC chip features — or stick with QR (works on every phone).
           </p>
         </Card>
       )}
       {status === "disabled" && mode === "nfc" && (
         <Card>
-          <p role="alert" className="u-text-sm">NFC is turned off. Enable it in Android Settings and come back.</p>
+          <p role="alert" className="u-text-sm">
+            NFC is turned off on this device. Enable it in Android Settings and come back.
+          </p>
         </Card>
       )}
 
-      {vehicles.length > 1 && (
+      {/* Vehicle picker */}
+      {vehiclesLoading ? (
+        <Card><p className="u-ink-muted u-text-sm">Loading vehicles…</p></Card>
+      ) : vehicles.length === 0 ? (
         <Card>
-          <label htmlFor="vsel">Vehicle</label>
-          <select id="vsel" value={vehicleId ?? ""}
-            onChange={(e) => setParams({ vehicle: e.target.value })}>
-            {vehicles.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
-          </select>
+          <h3>Add a vehicle first</h3>
+          <p className="u-text-sm u-ink-muted">
+            Tag & QR features bind a token to a vehicle. Go to the Garage, add one, then come back here.
+          </p>
+          <div className="sheet__actions">
+            <Link to="/vehicles" className="btn btn--primary">
+              <Icon name="plus" size="sm"/> Open Garage
+            </Link>
+          </div>
         </Card>
+      ) : (
+        <>
+          {vehicles.length > 1 && (
+            <Card>
+              <label htmlFor="vsel">Vehicle</label>
+              <select id="vsel" value={vehicleId ?? ""}
+                onChange={(e) => setParams({ vehicle: e.target.value })}>
+                {vehicles.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
+              </select>
+            </Card>
+          )}
+
+          <nav className="u-row u-gap-2 u-row-wrap" role="tablist"
+            aria-label={`${mode === "nfc" ? "NFC" : "QR"} tools`}>
+            {availableTabs.map((t) => {
+              const needs = needsVehicle.includes(t) && !vehicle;
+              return (
+                <button key={t}
+                  role="tab"
+                  aria-selected={activeTab === t}
+                  onClick={() => setTab(t)}
+                  disabled={needs}
+                  className={"pill-btn " + (activeTab === t ? "is-active" : "")}>
+                  {labelFor(t, mode)}
+                </button>
+              );
+            })}
+          </nav>
+
+          <section>
+            {/* SCAN */}
+            {activeTab === "scan" && mode === "nfc" && <TagInfoScreen/>}
+            {activeTab === "scan" && mode === "qr" && (
+              <Card>
+                <div className="u-col u-gap-3" style={{ textAlign: "center", padding: "var(--s-5) 0" }}>
+                  <h4>Point your camera at a MotoPulse QR</h4>
+                  <p className="u-ink-muted u-text-sm">
+                    The in-app scanner is for verifying a sticker before you print it. For normal use, your phone's own camera already does the same thing.
+                  </p>
+                  <div><Button variant="primary" onClick={() => setScannerOpen(true)}>
+                    <Icon name="search" size="sm"/> Open scanner
+                  </Button></div>
+                </div>
+              </Card>
+            )}
+
+            {/* WRITE */}
+            {activeTab === "write" && vehicle && mode === "nfc" && (
+              <WriteTagScreen vehicleId={vehicle.id} vehicleName={vehicle.name}/>
+            )}
+            {activeTab === "write" && vehicle && mode === "qr" && (
+              <QrCodeCard vehicleId={vehicle.id} vehicleName={vehicle.name} activeToken={vehicle.active_tag_token}/>
+            )}
+
+            {/* NFC-only */}
+            {activeTab === "erase"    && mode === "nfc" && <EraseFormatScreen/>}
+            {activeTab === "replace"  && vehicle && mode === "nfc" && <ReplaceTagScreen vehicleId={vehicle.id} vehicleName={vehicle.name}/>}
+            {activeTab === "advanced" && mode === "nfc" && <AdvancedScreen/>}
+
+            {/* Shared */}
+            {activeTab === "history" && vehicle && <TagHistoryScreen vehicleId={vehicle.id} vehicleName={vehicle.name}/>}
+          </section>
+        </>
       )}
-
-      <nav className="u-row u-gap-2 u-row-wrap" role="tablist" aria-label={`${mode === "nfc" ? "NFC" : "QR"} tools`}>
-        {availableTabs.map((t) => (
-          <button key={t}
-            role="tab"
-            aria-selected={activeTab === t}
-            onClick={() => setTab(t)}
-            disabled={needsVehicle.includes(t) && !vehicle}
-            className={"pill-btn " + (activeTab === t ? "is-active" : "")}>
-            {labelFor(t, mode)}
-          </button>
-        ))}
-      </nav>
-
-      <section>
-        {/* Scan: NFC = Tag info diagnostic; QR = camera scanner CTA */}
-        {activeTab === "scan" && mode === "nfc" && <TagInfoScreen/>}
-        {activeTab === "scan" && mode === "qr" && (
-          <Card>
-            <div className="u-col u-gap-3" style={{ textAlign: "center", padding: "var(--s-5) 0" }}>
-              <h4>Point your camera at a MotoPulse QR</h4>
-              <p className="u-ink-muted u-text-sm">
-                The in-app scanner is helpful for verifying a sticker before you print it. For normal use, your phone's camera does the same thing.
-              </p>
-              <Button variant="primary" onClick={() => setScannerOpen(true)}>
-                <Icon name="search" size="sm"/> Open scanner
-              </Button>
-            </div>
-          </Card>
-        )}
-
-        {/* Write: NFC = write to chip; QR = generate+print */}
-        {activeTab === "write" && vehicle && mode === "nfc" && (
-          <WriteTagScreen vehicleId={vehicle.id} vehicleName={vehicle.name}/>
-        )}
-        {activeTab === "write" && vehicle && mode === "qr" && (
-          <QrCodeCard vehicleId={vehicle.id} vehicleName={vehicle.name} activeToken={vehicle.active_tag_token}/>
-        )}
-
-        {/* NFC-only tabs */}
-        {activeTab === "erase"    && mode === "nfc" && <EraseFormatScreen/>}
-        {activeTab === "replace"  && vehicle && mode === "nfc" && <ReplaceTagScreen vehicleId={vehicle.id} vehicleName={vehicle.name}/>}
-        {activeTab === "advanced" && mode === "nfc" && <AdvancedScreen/>}
-
-        {/* History: shared */}
-        {activeTab === "history"  && vehicle && <TagHistoryScreen vehicleId={vehicle.id} vehicleName={vehicle.name}/>}
-      </section>
 
       {scannerOpen && <QrScannerSheet onClose={() => setScannerOpen(false)}
-        onToken={(token) => { window.location.href = `/v/${token}`; }}/>}
+        onToken={(token) => { window.location.href = `/v/${token}`; }}/>
+      }
     </div>
   );
 }
