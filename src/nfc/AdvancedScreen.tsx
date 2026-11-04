@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { errorMessage } from "@/lib/errors";
-import { lockTagPermanently, runOnNextTag, decodeUriRecord, MOTOPULSE_URL_PREFIX } from "./nfcPlugin";
+import { lockTagPermanently, runOnNextTag, decodeUriRecord } from "./nfcPlugin";
 import { findTagByToken } from "./tagRegistry";
 import { logTagEvent } from "./useTagEvents";
+import { extractToken } from "@/tap-session/useAppLinkListener";
 
 type Step = "idle" | "locking" | "done" | "error";
 
@@ -34,7 +35,7 @@ export function AdvancedScreen() {
     try {
       await runOnNextTag(async (scan) => {
         const url = scan.tag.ndefMessage?.[0] ? decodeUriRecord(scan.tag.ndefMessage[0]) : null;
-        const token = url?.startsWith(MOTOPULSE_URL_PREFIX) ? url.slice(MOTOPULSE_URL_PREFIX.length) : null;
+        const token = url ? extractToken(url) : null;
         if (token) {
           const row = await findTagByToken(token);
           if (row && row.status === "active") {

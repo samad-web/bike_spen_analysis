@@ -6,6 +6,7 @@ import { checkTagCompatibility } from "./nfcCompat";
 import { findTagByToken, generateToken, markTagReplaced, registerToken } from "./tagRegistry";
 import { logTagEvent } from "./useTagEvents";
 import { errorMessage } from "@/lib/errors";
+import { extractToken } from "@/tap-session/useAppLinkListener";
 
 interface Props {
   vehicleId: string;
@@ -42,9 +43,7 @@ export function WriteTagScreen({ vehicleId, vehicleName, onWritten }: Props) {
         if (!compat.compatible) throw new Error(compat.reason ?? "Incompatible tag.");
 
         const existingUrl = scan.tag.ndefMessage?.[0] ? decodeUriRecord(scan.tag.ndefMessage[0]) : null;
-        const existingToken = existingUrl?.startsWith(MOTOPULSE_URL_PREFIX)
-          ? existingUrl.slice(MOTOPULSE_URL_PREFIX.length)
-          : null;
+        const existingToken = existingUrl ? extractToken(existingUrl) : null;
         const existingTag = existingToken ? await findTagByToken(existingToken) : null;
         if (existingTag && existingTag.vehicle_id !== vehicleId) {
           throw new Error("This tag is registered to another vehicle. Use the Replace tab to reassign it.");

@@ -69,6 +69,18 @@
                       android:host="motopulse.mas20042005.workers.dev"
                       android:pathPrefix="/i/" />
             </intent-filter>
+
+            <!-- Direct NFC tag discovery -->
+            <intent-filter>
+                <action android:name="android.nfc.action.NDEF_DISCOVERED" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="https"
+                      android:host="motopulse.app"
+                      android:pathPrefix="/v/" />
+                <data android:scheme="https"
+                      android:host="motopulse.mas20042005.workers.dev"
+                      android:pathPrefix="/v/" />
+            </intent-filter>
         </activity>
 
         <provider

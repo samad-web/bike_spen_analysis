@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { CapacitorNfc } from "@capgo/capacitor-nfc";
 import { Button, Icon } from "@/app/ui";
-import { buildTokenUrlRecord, decodeUriRecord, MOTOPULSE_URL_PREFIX, runOnNextTag } from "./nfcPlugin";
+import { buildTokenUrlRecord, decodeUriRecord, runOnNextTag } from "./nfcPlugin";
 import { checkTagCompatibility } from "./nfcCompat";
 import { findTagByToken, generateToken, markTagReplaced, registerToken } from "./tagRegistry";
 import { logTagEvent } from "./useTagEvents";
 import { errorMessage } from "@/lib/errors";
+import { extractToken } from "@/tap-session/useAppLinkListener";
 
 interface Props {
   vehicleId: string;
@@ -33,7 +34,7 @@ export function ReplaceTagScreen({ vehicleId, vehicleName, onReplaced }: Props) 
     try {
       const token = await runOnNextTag(async (scan) => {
         const url = scan.tag.ndefMessage?.[0] ? decodeUriRecord(scan.tag.ndefMessage[0]) : null;
-        const t = url?.startsWith(MOTOPULSE_URL_PREFIX) ? url.slice(MOTOPULSE_URL_PREFIX.length) : null;
+        const t = url ? extractToken(url) : null;
         if (!t) throw new Error("That tag is not a MotoPulse tag.");
         const row = await findTagByToken(t);
         if (!row || row.vehicle_id !== vehicleId) {

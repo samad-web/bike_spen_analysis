@@ -100,6 +100,11 @@ export function useRideCalendar(currentMonthDate: Date = new Date()) {
 
   useEffect(() => {
     void refresh();
+    const onSessionChange = () => {
+      void refresh();
+    };
+    window.addEventListener("motopulse:sessionChanged", onSessionChange);
+    return () => window.removeEventListener("motopulse:sessionChanged", onSessionChange);
   }, [refresh]);
 
   const planRide = useCallback(

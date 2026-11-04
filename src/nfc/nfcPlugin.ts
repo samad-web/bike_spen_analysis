@@ -51,9 +51,11 @@ function toHex(bytes: number[]): string {
  * stops scanning. Used by every NFC Tools screen (read, write, erase,
  * replace) — they all start from "scan a tag". */
 export async function scanOnce(): Promise<ScanResult> {
+  if (typeof window !== "undefined") window.__motopulseNfcBusy = true;
   return new Promise((resolve, reject) => {
     let handle: { remove: () => Promise<void> } | undefined;
     const timeout = setTimeout(async () => {
+      if (typeof window !== "undefined") window.__motopulseNfcBusy = false;
       await handle?.remove();
       await CapacitorNfc.stopScanning().catch(() => {});
       reject(new Error("No tag detected within 30s. Hold the tag steady against the back of the phone."));
@@ -61,6 +63,7 @@ export async function scanOnce(): Promise<ScanResult> {
 
     CapacitorNfc.addListener("nfcEvent", async (event: NfcEvent) => {
       clearTimeout(timeout);
+      if (typeof window !== "undefined") window.__motopulseNfcBusy = false;
       await handle?.remove();
       await CapacitorNfc.stopScanning().catch(() => {});
       resolve({ tag: event.tag, uidHex: toHex(event.tag.id ?? []) });
@@ -71,6 +74,7 @@ export async function scanOnce(): Promise<ScanResult> {
       })
       .catch((err) => {
         clearTimeout(timeout);
+        if (typeof window !== "undefined") window.__motopulseNfcBusy = false;
         reject(err);
       });
   });
@@ -95,10 +99,12 @@ export async function stopScan(): Promise<void> {
  * session is opened, not after.
  */
 export async function runOnNextTag<T>(inSession: (result: ScanResult) => Promise<T>): Promise<T> {
+  if (typeof window !== "undefined") window.__motopulseNfcBusy = true;
   return new Promise<T>((resolve, reject) => {
     let handle: { remove: () => Promise<void> } | undefined;
     let done = false;
     const cleanup = async () => {
+      if (typeof window !== "undefined") window.__motopulseNfcBusy = false;
       await handle?.remove().catch(() => {});
       await CapacitorNfc.stopScanning().catch(() => {});
     };

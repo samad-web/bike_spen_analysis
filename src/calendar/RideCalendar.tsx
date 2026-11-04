@@ -339,14 +339,17 @@ function DayPlanSheet({
  */
 export function TodayRideWidget({ onOpenCalendar }: { onOpenCalendar?: () => void }) {
   const { vehicles } = useVehicles();
-  const { todayPlan, planRide } = useRideCalendar();
+  const { todayPlan, getDaySummary, planRide } = useRideCalendar();
   const [sheetOpen, setSheetOpen] = useState(false);
 
-  const plannedVehicle = vehicles.find((v) => v.id === todayPlan?.vehicle_id);
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const todaySummary = getDaySummary(todayIso);
+  const activeVehicleId = todayPlan?.vehicle_id ?? todaySummary.riddenVehicleIds[0] ?? null;
+  const currentVehicle = vehicles.find((v) => v.id === activeVehicleId);
 
   return (
     <>
-      <Card variant={plannedVehicle ? "accent" : "default"} className="bento__6">
+      <Card variant={currentVehicle ? "accent" : "default"} className="bento__6">
         <div className="u-row u-row-between" style={{ marginBottom: 8 }}>
           <div className="u-row u-gap-2">
             <Icon name="calendar" size="sm" />
@@ -364,11 +367,11 @@ export function TodayRideWidget({ onOpenCalendar }: { onOpenCalendar?: () => voi
           )}
         </div>
 
-        {plannedVehicle ? (
+        {currentVehicle ? (
           <div className="u-row u-row-between" style={{ alignItems: "center" }}>
             <div className="u-col u-gap-1">
               <span className="u-text-xs u-ink-muted">You are riding:</span>
-              <strong style={{ fontSize: "var(--t-md)" }}>{plannedVehicle.name}</strong>
+              <strong style={{ fontSize: "var(--t-md)" }}>{currentVehicle.name}</strong>
               {todayPlan?.notes && <span className="u-text-xs u-ink-muted">"{todayPlan.notes}"</span>}
             </div>
             <Button size="sm" variant="ghost" onClick={() => setSheetOpen(true)}>
@@ -398,7 +401,7 @@ export function TodayRideWidget({ onOpenCalendar }: { onOpenCalendar?: () => voi
               <button
                 key={v.id}
                 type="button"
-                className={"card u-row u-row-between " + (v.id === plannedVehicle?.id ? "card--accent" : "")}
+                className={"card u-row u-row-between " + (v.id === currentVehicle?.id ? "card--accent" : "")}
                 style={{ textAlign: "left", cursor: "pointer", padding: "var(--s-3) var(--s-4)" }}
                 onClick={async () => {
                   const todayIso = new Date().toISOString().slice(0, 10);
@@ -410,7 +413,7 @@ export function TodayRideWidget({ onOpenCalendar }: { onOpenCalendar?: () => voi
                   <strong>{v.name}</strong>
                   <div className="u-text-xs u-ink-muted">{[v.make, v.model].filter(Boolean).join(" ")}</div>
                 </div>
-                {v.id === plannedVehicle?.id && <Chip variant="on-accent">Current</Chip>}
+                {v.id === currentVehicle?.id && <Chip variant="on-accent">Current</Chip>}
               </button>
             ))}
           </div>
