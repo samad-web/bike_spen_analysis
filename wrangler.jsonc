@@ -1,0 +1,24 @@
+// Cloudflare Workers + Static Assets config for MotoPulse.
+//
+// Why this file: CF's new Workers Static Assets deploy (invoked via
+// `npx wrangler deploy`) rejects the classic Pages-style `_redirects`
+// file with "Invalid _redirects configuration: Line 1: Infinite loop
+// detected" because its router automatically strips `.html` / `/index`
+// suffixes. The sanctioned way to get SPA fallback on Workers + Assets
+// is `assets.not_found_handling = "single-page-application"` — any
+// request that doesn't match a built file gets index.html at status 200,
+// which is what React Router needs to handle `/dashboard`, `/admin`, etc.
+//
+// Docs: https://developers.cloudflare.com/workers/static-assets/routing/
+{
+  "$schema": "https://unpkg.com/wrangler@latest/config-schema.json",
+  "name": "motopulse",
+  "compatibility_date": "2025-11-01",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  },
+  "observability": {
+    "enabled": true
+  }
+}
