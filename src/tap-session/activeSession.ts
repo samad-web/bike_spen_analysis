@@ -35,12 +35,24 @@ function nextMidnightIso(): string {
 export async function startSession(vehicleId: string): Promise<void> {
   const { data: userRes } = await supabase.auth.getUser();
   if (!userRes.user) throw new Error("Must be signed in to start a session");
-  await supabase.from("active_sessions").upsert({
-    user_id: userRes.user.id,
-    vehicle_id: vehicleId,
-    started_at: new Date().toISOString(),
-    expires_at: nextMidnightIso(),
-  });
+  const todayIso = new Date().toISOString().slice(0, 10);
+
+  await Promise.all([
+    supabase.from("active_sessions").upsert({
+      user_id: userRes.user.id,
+      vehicle_id: vehicleId,
+      started_at: new Date().toISOString(),
+      expires_at: nextMidnightIso(),
+    }),
+    supabase.from("ride_logs").upsert(
+      {
+        user_id: userRes.user.id,
+        vehicle_id: vehicleId,
+        ride_date: todayIso,
+      },
+      { onConflict: "vehicle_id,ride_date" }
+    ),
+  ]);
 }
 
 export async function endSession(): Promise<void> {

@@ -20,13 +20,16 @@ export interface CalendarDaySummary {
   riddenVehicleIds: string[];
   totalSpend: number;
   expenseCount: number;
+  dayExpenses: { id: string; vehicle_id: string; total_amount: number; expense_date: string; category?: string; litres?: number | null }[];
 }
 
 export function useRideCalendar(currentMonthDate: Date = new Date()) {
   const { session } = useAuth();
   const [plans, setPlans] = useState<PlannedRide[]>([]);
   const [rideLogs, setRideLogs] = useState<{ vehicle_id: string; ride_date: string }[]>([]);
-  const [expenses, setExpenses] = useState<{ vehicle_id: string; total_amount: number; expense_date: string }[]>([]);
+  const [tagEvents, setTagEvents] = useState<{ vehicle_id: string | null; created_at: string }[]>([]);
+  const [activeSessionVehicleId, setActiveSessionVehicleId] = useState<string | null>(null);
+  const [expenses, setExpenses] = useState<{ id: string; vehicle_id: string; total_amount: number; expense_date: string; category?: string; litres?: number | null }[]>([]);
   const [loading, setLoading] = useState(true);
 
   const year = currentMonthDate.getFullYear();
@@ -46,13 +49,15 @@ export function useRideCalendar(currentMonthDate: Date = new Date()) {
       setPlans([]);
       setRideLogs([]);
       setExpenses([]);
+      setTagEvents([]);
+      setActiveSessionVehicleId(null);
       setLoading(false);
       return;
     }
     setLoading(true);
 
     try {
-      const [plansRes, ridesRes, expRes] = await Promise.all([
+      const [plansRes, ridesRes, expRes, activeRes, tagsRes] = await Promise.all([
         supabase
           .from("planned_rides")
           .select("id, vehicle_id, plan_date, notes")
@@ -65,15 +70,27 @@ export function useRideCalendar(currentMonthDate: Date = new Date()) {
           .lte("ride_date", endIso),
         supabase
           .from("expenses")
-          .select("vehicle_id, total_amount, expense_date")
+          .select("id, vehicle_id, total_amount, expense_date, category, litres")
           .gte("expense_date", startIso)
           .lte("expense_date", endIso)
           .is("deleted_at", null),
+        supabase
+          .from("active_sessions")
+          .select("vehicle_id")
+          .eq("user_id", session.user.id)
+          .maybeSingle(),
+        supabase
+          .from("nfc_tag_events")
+          .select("vehicle_id, created_at")
+          .gte("created_at", startIso)
+          .lte("created_at", endIso + "T23:59:59"),
       ]);
 
       setPlans((plansRes.data ?? []) as PlannedRide[]);
       setRideLogs(ridesRes.data ?? []);
       setExpenses(expRes.data ?? []);
+      setActiveSessionVehicleId(activeRes.data?.vehicle_id ?? null);
+      setTagEvents(tagsRes.data ?? []);
     } catch {
       /* ignore */
     } finally {
@@ -132,15 +149,83 @@ export function useRideCalendar(currentMonthDate: Date = new Date()) {
     [session?.user.id, refresh]
   );
 
+  const todayIso = new Date().toISOString().slice(0, 10);
+
+  const logRide = useCallback(
+    async (date: string, vehicleId: string) => {
+      if (!session?.user.id) return { error: "Not authenticated" };
+      const { error } = await supabase.from("ride_logs").upsert(
+        {
+          user_id: session.user.id,
+          vehicle_id: vehicleId,
+          ride_date: date,
+        },
+        { onConflict: "vehicle_id,ride_date" }
+      );
+      if (!error) {
+        if (date === todayIso) {
+          try {
+            await startSession(vehicleId);
+          } catch {
+            /* ignore */
+          }
+        }
+        await refresh();
+      }
+      return { error: error?.message ?? null };
+    },
+    [session?.user.id, todayIso, refresh]
+  );
+
+  const removeRide = useCallback(
+    async (date: string, vehicleId: string) => {
+      if (!session?.user.id) return { error: "Not authenticated" };
+      const { error } = await supabase
+        .from("ride_logs")
+        .delete()
+        .eq("user_id", session.user.id)
+        .eq("vehicle_id", vehicleId)
+        .eq("ride_date", date);
+      if (!error) await refresh();
+      return { error: error?.message ?? null };
+    },
+    [session?.user.id, refresh]
+  );
+
   // Group helpers for date lookups
   const plansByDate = new Map<string, PlannedRide>();
   for (const p of plans) plansByDate.set(p.plan_date, p);
 
   const ridesByDate = new Map<string, string[]>();
+
+  // 1. Explicit ride_logs
   for (const r of rideLogs) {
     const list = ridesByDate.get(r.ride_date) ?? [];
     if (!list.includes(r.vehicle_id)) list.push(r.vehicle_id);
     ridesByDate.set(r.ride_date, list);
+  }
+
+  // 2. Active session for today
+  if (activeSessionVehicleId) {
+    const list = ridesByDate.get(todayIso) ?? [];
+    if (!list.includes(activeSessionVehicleId)) list.push(activeSessionVehicleId);
+    ridesByDate.set(todayIso, list);
+  }
+
+  // 3. NFC Tag events (e.g. tag scanned / tapped on that day)
+  for (const t of tagEvents) {
+    if (!t.vehicle_id) continue;
+    const dateStr = t.created_at.slice(0, 10);
+    const list = ridesByDate.get(dateStr) ?? [];
+    if (!list.includes(t.vehicle_id)) list.push(t.vehicle_id);
+    ridesByDate.set(dateStr, list);
+  }
+
+  // 4. Expenses incurred on that day
+  for (const e of expenses) {
+    const list = ridesByDate.get(e.expense_date) ?? [];
+    if (!list.includes(e.vehicle_id)) list.push(e.vehicle_id);
+    ridesByDate.set(e.expense_date, list);
   }
 
   const spendByDate = new Map<string, { total: number; count: number }>();
@@ -151,8 +236,6 @@ export function useRideCalendar(currentMonthDate: Date = new Date()) {
     spendByDate.set(e.expense_date, cur);
   }
 
-  const todayIso = new Date().toISOString().slice(0, 10);
-
   const getDaySummary = (dateIso: string): CalendarDaySummary => {
     const [, , d] = dateIso.split("-").map(Number);
     const isToday = dateIso === todayIso;
@@ -162,6 +245,7 @@ export function useRideCalendar(currentMonthDate: Date = new Date()) {
     const planned = plansByDate.get(dateIso) ?? null;
     const ridden = ridesByDate.get(dateIso) ?? [];
     const spend = spendByDate.get(dateIso) ?? { total: 0, count: 0 };
+    const dayExpenses = expenses.filter((e) => e.expense_date === dateIso);
 
     return {
       date: dateIso,
@@ -173,6 +257,7 @@ export function useRideCalendar(currentMonthDate: Date = new Date()) {
       riddenVehicleIds: ridden,
       totalSpend: spend.total,
       expenseCount: spend.count,
+      dayExpenses,
     };
   };
 
@@ -183,6 +268,8 @@ export function useRideCalendar(currentMonthDate: Date = new Date()) {
     refresh,
     planRide,
     clearPlan,
+    logRide,
+    removeRide,
     getDaySummary,
     todayPlan,
   };

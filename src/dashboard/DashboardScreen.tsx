@@ -150,7 +150,7 @@ export function DashboardScreen() {
         </div>
 
         {/* Today's Ride Planner Widget */}
-        <TodayRideWidget onOpenCalendar={() => navigate("/analytics")} />
+        <TodayRideWidget onOpenCalendar={() => navigate("/calendar")} />
 
         {/* Trend row: 6 + 6 */}
         <Card className="bento__6">

@@ -5,6 +5,7 @@ interface NavItem { to: string; label: string; icon: IconName }
 
 const PRIMARY: NavItem[] = [
   { to: "/dashboard", label: "Home",      icon: "home" },
+  { to: "/calendar",  label: "Calendar",  icon: "calendar" },
   { to: "/vehicles",  label: "Garage",    icon: "garage" },
   { to: "/analytics", label: "Analytics", icon: "chart" },
   { to: "/nfc-tools", label: "NFC",       icon: "nfc" },
