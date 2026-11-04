@@ -52,28 +52,22 @@ export function useProfile() {
 
   useEffect(() => { void refresh(); }, [refresh]);
 
-  // Focus-based refetch
+  // Focus-based refetch. Covers:
+  //   - User ran SQL in another tab (admin promotion), comes back
+  //   - Admin toggled their role in the admin console
+  //   - Any out-of-band change since the initial fetch
+  //
+  // A previous iteration also used a Supabase Realtime `postgres_changes`
+  // subscription, but React StrictMode double-mounts the effect, and the
+  // supabase-js `channel.on()` call throws "cannot add callbacks after
+  // subscribe()" on the second mount because `removeChannel` is async
+  // and doesn't complete before the re-mount. Focus-refetch is enough
+  // for the actual use cases and doesn't have the StrictMode trap.
   useEffect(() => {
     const onFocus = () => void refresh();
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, [refresh]);
-
-  // Realtime subscription so a server-side change (SQL promotion, admin
-  // console toggle) refreshes the local state within ~1s.
-  useEffect(() => {
-    if (!session?.user.id) return;
-    const channel = supabase
-      .channel("user_profile_" + session.user.id)
-      .on("postgres_changes", {
-        event: "*",
-        schema: "public",
-        table: "user_profiles",
-        filter: `user_id=eq.${session.user.id}`,
-      }, () => { void refresh(); })
-      .subscribe();
-    return () => { void supabase.removeChannel(channel); };
-  }, [session?.user.id, refresh]);
 
   const isSuperadmin = profile?.role === "superadmin";
 

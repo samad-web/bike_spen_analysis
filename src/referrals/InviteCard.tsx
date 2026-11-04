@@ -56,11 +56,20 @@ export function InviteCard() {
     } catch { /* user cancelled */ }
   };
 
+  const pitch = "Try MotoPulse — logs your fuel at the tap of a tag.";
+  const encodedUrl = encodeURIComponent(inviteUrl);
+  const encodedPitch = encodeURIComponent(pitch);
   const shareUrls = {
-    whatsapp: `https://wa.me/?text=${encodeURIComponent("Try MotoPulse — logs your fuel at the tap of a tag. " + inviteUrl)}`,
-    telegram: `https://t.me/share/url?url=${encodeURIComponent(inviteUrl)}&text=${encodeURIComponent("Try MotoPulse — tap, log, done.")}`,
-    twitter:  `https://twitter.com/intent/tweet?text=${encodeURIComponent("Tap your bike's NFC tag at the pump — @MotoPulse logs the fuel. Try it: " + inviteUrl)}`,
-    email:    `mailto:?subject=${encodeURIComponent("Try MotoPulse")}&body=${encodeURIComponent("I've been using MotoPulse to log fuel + maintenance in one tap. Thought you'd like it: " + inviteUrl)}`,
+    whatsapp: `https://wa.me/?text=${encodeURIComponent(pitch + " " + inviteUrl)}`,
+    telegram: `https://t.me/share/url?url=${encodedUrl}&text=${encodedPitch}`,
+    twitter:  `https://twitter.com/intent/tweet?text=${encodeURIComponent(pitch + " " + inviteUrl)}`,
+    email:    `mailto:?subject=${encodeURIComponent("Try MotoPulse")}&body=${encodeURIComponent(pitch + " " + inviteUrl)}`,
+    sms:      `sms:?&body=${encodeURIComponent(pitch + " " + inviteUrl)}`,
+    facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${encodedPitch}`,
+    linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`,
+    reddit:   `https://www.reddit.com/submit?url=${encodedUrl}&title=${encodedPitch}`,
+    messenger:`fb-messenger://share/?link=${encodedUrl}`,
+    pinterest:`https://www.pinterest.com/pin/create/button/?url=${encodedUrl}&description=${encodedPitch}`,
   };
 
   return (
@@ -95,10 +104,16 @@ export function InviteCard() {
             </Button>
           </div>
           <div className="u-row u-gap-2 u-row-wrap">
-            <a className="pill-btn" href={shareUrls.whatsapp} target="_blank" rel="noopener">WhatsApp</a>
-            <a className="pill-btn" href={shareUrls.telegram} target="_blank" rel="noopener">Telegram</a>
-            <a className="pill-btn" href={shareUrls.twitter}  target="_blank" rel="noopener">X / Twitter</a>
+            <a className="pill-btn" href={shareUrls.whatsapp}  target="_blank" rel="noopener">WhatsApp</a>
+            <a className="pill-btn" href={shareUrls.telegram}  target="_blank" rel="noopener">Telegram</a>
+            <a className="pill-btn" href={shareUrls.sms}>SMS</a>
             <a className="pill-btn" href={shareUrls.email}>Email</a>
+            <a className="pill-btn" href={shareUrls.twitter}   target="_blank" rel="noopener">X / Twitter</a>
+            <a className="pill-btn" href={shareUrls.facebook}  target="_blank" rel="noopener">Facebook</a>
+            <a className="pill-btn" href={shareUrls.messenger} target="_blank" rel="noopener">Messenger</a>
+            <a className="pill-btn" href={shareUrls.linkedin}  target="_blank" rel="noopener">LinkedIn</a>
+            <a className="pill-btn" href={shareUrls.reddit}    target="_blank" rel="noopener">Reddit</a>
+            <a className="pill-btn" href={shareUrls.pinterest} target="_blank" rel="noopener">Pinterest</a>
           </div>
         </div>
       </div>
