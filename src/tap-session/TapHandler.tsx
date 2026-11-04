@@ -5,6 +5,7 @@ import { useVehicles } from "@/vehicles/useVehicles";
 import { QuickLogForm } from "@/expenses/QuickLogForm";
 import { notifyRideStarted } from "@/settings/useNotificationPermission";
 import { decodeUriRecord } from "@/nfc/nfcPlugin";
+import { Button, Sheet } from "@/app/ui";
 import {
   decideTapOutcome,
   getActiveSession,
@@ -148,9 +149,9 @@ export function TapHandler() {
       const v = vehicles.find((x) => x.id === outcome.vehicleId);
       if (!v) return <Toast onClose={close}>Vehicle not found.</Toast>;
       return (
-        <SheetModal onClose={close}>
+        <Sheet onClose={close}>
           <QuickLogForm vehicleId={v.id} vehicleName={v.name} onDone={close} />
-        </SheetModal>
+        </Sheet>
       );
     }
 
@@ -158,19 +159,15 @@ export function TapHandler() {
       const fromV = vehicles.find((x) => x.id === outcome.fromVehicleId);
       const toV = vehicles.find((x) => x.id === outcome.toVehicleId);
       return (
-        <SheetModal onClose={close}>
+        <Sheet onClose={close} title="Switch vehicle?">
           <div className="u-col u-gap-4" style={{ padding: "8px 0" }}>
-            <div>
-              <h3 style={{ margin: 0, fontSize: "1.2rem" }}>Switch vehicle?</h3>
-              <p className="u-text-sm u-ink-muted" style={{ margin: "6px 0 0" }}>
-                You're currently riding <strong>{fromV?.name ?? "another bike"}</strong> today.
-                Switch today's ride to <strong>{toV?.name ?? switchVehicleName}</strong>?
-              </p>
-            </div>
+            <p className="u-text-sm u-ink-muted" style={{ margin: 0 }}>
+              You're currently riding <strong>{fromV?.name ?? "another bike"}</strong> today.
+              Switch today's ride to <strong>{toV?.name ?? switchVehicleName}</strong>?
+            </p>
             <div className="u-row u-gap-2">
-              <button
-                type="button"
-                className="btn btn--primary"
+              <Button
+                variant="primary"
                 onClick={async () => {
                   await startSession(outcome.toVehicleId);
                   if (toV) void notifyRideStarted(toV.name);
@@ -178,13 +175,13 @@ export function TapHandler() {
                 }}
               >
                 Switch to {toV?.name ?? "this vehicle"}
-              </button>
-              <button type="button" className="btn btn--ghost" onClick={close}>
+              </Button>
+              <Button variant="ghost" onClick={close}>
                 Keep {fromV?.name ?? "current"}
-              </button>
+              </Button>
             </div>
           </div>
-        </SheetModal>
+        </Sheet>
       );
     }
   }
@@ -280,13 +277,4 @@ function RideStartedBanner({ vehicleName, onClose }: { vehicleName: string; onCl
   );
 }
 
-function SheetModal({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
-  return (
-    <div className="sheet-modal" role="dialog" aria-modal="true">
-      <button type="button" className="sheet-modal-close" onClick={onClose} aria-label="Close">
-        ×
-      </button>
-      {children}
-    </div>
-  );
-}
+

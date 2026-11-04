@@ -138,6 +138,14 @@ export function Sheet({ children, onClose, title, subtitle }: {
     <div className="sheet-backdrop" onClick={onClose} role="dialog" aria-modal="true">
       <div className="sheet" onClick={(e) => e.stopPropagation()}>
         <div className="sheet__handle" aria-hidden="true" />
+        <button
+          type="button"
+          className="sheet__close"
+          onClick={onClose}
+          aria-label="Close"
+        >
+          ✕
+        </button>
         {title && <h3 className="sheet__title">{title}</h3>}
         {subtitle && <p className="sheet__subtitle">{subtitle}</p>}
         {children}

@@ -497,38 +497,64 @@ label + input, label + select, label + textarea { margin-bottom: var(--s-4); }
    ============================================================================ */
 .sheet-backdrop {
   position: fixed; inset: 0;
-  background: rgba(10, 10, 14, 0.55);
-  backdrop-filter: blur(4px);
-  z-index: 60;
+  background: rgba(10, 10, 14, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 1000;
   display: flex;
   align-items: flex-end;
   justify-content: center;
   animation: fadeIn var(--dur-fast) var(--ease);
 }
 .sheet {
-  background: var(--surface);
-  color: var(--ink);
+  background: var(--surface-dark, #16161a);
+  color: var(--ink-on-dark, #f5f5f7);
   width: 100%;
   max-width: 520px;
-  max-height: 92dvh;
-  overflow: auto;
+  max-height: 88dvh;
+  overflow-y: auto;
   border-radius: var(--r-outer) var(--r-outer) 0 0;
-  padding: var(--s-5) var(--s-5) calc(var(--nav-mobile-height) + var(--s-5));
+  padding: var(--s-5) var(--s-5) calc(env(safe-area-inset-bottom, 24px) + 36px);
   animation: sheetUp var(--dur-med) var(--ease);
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.6);
+  border: 1px solid var(--border);
+  border-bottom: 0;
   display: flex;
   flex-direction: column;
   gap: var(--s-4);
+  position: relative;
+  z-index: 1001;
 }
 @media (min-width: 640px) {
   .sheet-backdrop { align-items: center; }
-  .sheet { border-radius: var(--r-outer); padding: var(--s-5) var(--s-5) var(--s-5); }
+  .sheet { border-radius: var(--r-outer); padding: var(--s-5) var(--s-5) var(--s-5); border-bottom: 1px solid var(--border); }
 }
 .sheet__handle {
   width: 44px; height: 4px; border-radius: 999px;
-  background: var(--border-strong);
+  background: rgba(255, 255, 255, 0.2);
   margin: 0 auto;
   flex-shrink: 0;
+}
+.sheet__close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #a0a097;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all var(--dur-fast);
+  z-index: 10;
+}
+.sheet__close:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
 }
 .sheet__title { font-size: var(--t-md); font-weight: 700; color: var(--ink-strong); }
 .sheet__subtitle { font-size: var(--t-sm); color: var(--ink-muted); }
