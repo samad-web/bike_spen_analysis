@@ -3,6 +3,14 @@ import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { flushQueue } from "@/lib/offline-queue";
 import { errorMessage } from "@/lib/errors";
+import { PUBLIC_URL } from "@/lib/publicUrl";
+
+// Every auth email (magic link, signup confirmation, password reset) must
+// redirect back to THIS deployment; otherwise the link in the inbox lands
+// on Supabase's default (typically `localhost:3000`) and the session can't
+// hydrate. PUBLIC_URL is the CF Workers subdomain in production, falls back
+// to the current origin in local dev.
+const AUTH_REDIRECT = `${PUBLIC_URL}/`;
 
 interface AuthState {
   session: Session | null;
@@ -11,7 +19,6 @@ interface AuthState {
   signInWithPassword: (email: string, password: string) => Promise<{ error: string | null }>;
   signUpWithPassword: (email: string, password: string) => Promise<{ error: string | null; needsConfirmation: boolean }>;
   resetPassword: (email: string) => Promise<{ error: string | null }>;
-  signInWithGoogle: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -37,7 +44,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signInWithEmail = async (email: string) => {
-    const { error } = await supabase.auth.signInWithOtp({ email });
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: AUTH_REDIRECT },
+    });
     return { error: error ? errorMessage(error) : null };
   };
 
@@ -47,23 +57,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signUpWithPassword = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    const { data, error } = await supabase.auth.signUp({
+      email, password,
+      options: { emailRedirectTo: AUTH_REDIRECT },
+    });
     if (error) return { error: errorMessage(error), needsConfirmation: false };
-    // If Supabase is configured to require email confirmation, `session` is
-    // null until the user clicks the confirmation link in their inbox.
     const needsConfirmation = data.session === null && data.user !== null;
     return { error: null, needsConfirmation };
   };
 
   const resetPassword = async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/`,
+      redirectTo: AUTH_REDIRECT,
     });
-    return { error: error ? errorMessage(error) : null };
-  };
-
-  const signInWithGoogle = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({ provider: "google" });
     return { error: error ? errorMessage(error) : null };
   };
 
@@ -75,7 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider value={{
       session, loading,
       signInWithEmail, signInWithPassword, signUpWithPassword, resetPassword,
-      signInWithGoogle, signOut,
+      signOut,
     }}>
       {children}
     </AuthContext.Provider>
