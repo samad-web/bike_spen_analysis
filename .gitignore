@@ -13,3 +13,4 @@ tsconfig.tsbuildinfo
 *.apk
 *.aab
 supabase/.temp/
+WhatsApp Image*.jpeg

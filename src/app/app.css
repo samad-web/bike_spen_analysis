@@ -66,7 +66,13 @@ p  { margin: 0; }
   width: 100%;
   max-width: 1200px;
   margin: 0 auto;
-  padding: var(--s-5) var(--s-4) calc(var(--nav-mobile-height) + var(--s-5));
+  /* Status bar safe-area clearance: guarantees content starts below the mobile clock/timer */
+  padding-top: calc(max(env(safe-area-inset-top, 0px), 48px) + var(--s-3));
+  padding-right: var(--s-4);
+  /* Bottom navigation clearance: allows content to scroll completely above the floating nav */
+  padding-bottom: calc(var(--nav-mobile-height) + max(env(safe-area-inset-bottom, 0px), 16px) + 90px);
+  padding-left: var(--s-4);
+  box-sizing: border-box;
 }
 @media (min-width: 960px) {
   .app-shell {
@@ -335,19 +341,22 @@ label + input, label + select, label + textarea { margin-bottom: var(--s-4); }
 .mobile-nav {
   position: fixed;
   left: 50%;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + var(--s-4));
+  bottom: calc(max(env(safe-area-inset-bottom, 0px), 12px) + var(--s-3));
   transform: translateX(-50%);
   width: calc(100% - var(--s-6));
   max-width: 400px;
   height: var(--nav-mobile-height);
-  background: var(--surface-dark);
+  background: rgba(22, 22, 26, 0.94);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   color: var(--ink-on-dark);
   border-radius: var(--r-pill);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   padding: 0 var(--s-3);
   display: flex;
   align-items: center;
   justify-content: space-around;
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.06);
   z-index: 50;
 }
 .mobile-nav__item {
@@ -683,21 +692,21 @@ label + input, label + select, label + textarea { margin-bottom: var(--s-4); }
    the main content area. */
 .scan-fab {
   position: fixed;
-  right: var(--s-5);
-  bottom: calc(var(--nav-mobile-height) + env(safe-area-inset-bottom, 0px) + var(--s-5));
+  right: var(--s-4);
+  bottom: calc(var(--nav-mobile-height) + max(env(safe-area-inset-bottom, 0px), 12px) + var(--s-4));
   z-index: 40;
   display: inline-flex;
   align-items: center;
   gap: var(--s-2);
-  padding: 0 var(--s-5);
-  height: 52px;
+  padding: 0 var(--s-4);
+  height: 48px;
   background: var(--accent-500);
   color: var(--ink-on-accent);
   border: 0;
   border-radius: var(--r-pill);
-  font-size: var(--t-base);
+  font-size: var(--t-sm);
   font-weight: 700;
-  box-shadow: var(--shadow-glow);
+  box-shadow: 0 4px 20px rgba(245, 184, 0, 0.45);
   cursor: pointer;
   transition: transform var(--dur-fast) var(--ease);
 }

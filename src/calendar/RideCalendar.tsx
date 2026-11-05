@@ -368,13 +368,17 @@ export function TodayRideWidget({ onOpenCalendar }: { onOpenCalendar?: () => voi
         </div>
 
         {currentVehicle ? (
-          <div className="u-row u-row-between" style={{ alignItems: "center" }}>
+          <div className="u-row u-row-between" style={{ alignItems: "center", gap: 12 }}>
             <div className="u-col u-gap-1">
               <span className="u-text-xs u-ink-muted">You are riding:</span>
               <strong style={{ fontSize: "var(--t-md)" }}>{currentVehicle.name}</strong>
               {todayPlan?.notes && <span className="u-text-xs u-ink-muted">"{todayPlan.notes}"</span>}
             </div>
-            <Button size="sm" variant="ghost" onClick={() => setSheetOpen(true)}>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setSheetOpen(true)}
+            >
               Switch bike
             </Button>
           </div>
