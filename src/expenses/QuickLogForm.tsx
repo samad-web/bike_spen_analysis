@@ -4,6 +4,10 @@ import { useVehicles } from "@/vehicles/useVehicles";
 import { Icon } from "@/app/ui";
 import type { PaymentMethod } from "@/lib/offline-queue";
 import { fuelActionLabel, quantityFieldLabel, unitForVehicle } from "./fuelUnit";
+import { useCards } from "@/cards/useCards";
+import { calculateCardReturns } from "@/cards/cardReturns";
+import { CardVisual } from "@/cards/CardVisual";
+import { AddEditCardSheet } from "@/cards/AddEditCardSheet";
 
 const MAINTENANCE_PRESETS = [
   { label: "Oil change", icon: "🛢️" },
@@ -67,6 +71,26 @@ export function QuickLogForm({ vehicleId, vehicleName, initialExpense, onDone }:
   const [saving, setSaving] = useState(false);
   const [undoState, setUndoState] = useState<{ id: string } | null>(null);
 
+  const { cards, addCard } = useCards();
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(() => {
+    return initialExpense?.card_id ?? null;
+  });
+  const [cardSheetOpen, setCardSheetOpen] = useState(false);
+
+  const selectedCard = useMemo(() => {
+    if (!cards.length) return null;
+    if (selectedCardId) {
+      const match = cards.find((c) => c.id === selectedCardId);
+      if (match) return match;
+    }
+    return cards.find((c) => c.is_default) ?? cards[0];
+  }, [cards, selectedCardId]);
+
+  const cardReturns = useMemo(() => {
+    if (paymentMethod !== "card" || !selectedCard) return null;
+    return calculateCardReturns(selectedCard, Number(amount), category, notes);
+  }, [paymentMethod, selectedCard, amount, category, notes]);
+
   // Seamless in-screen mode switcher (does not navigate or open another tab)
   const switchCategory = (next: "fuel" | "maintenance") => {
     setCategory(next);
@@ -112,6 +136,8 @@ export function QuickLogForm({ vehicleId, vehicleName, initialExpense, onDone }:
       p_items: category === "maintenance" && itemLabel ? [{ label: itemLabel, amount: total }] : null,
       p_payment_method: paymentMethod,
       p_fuel_unit: fuelUnit,
+      p_card_id: paymentMethod === "card" ? selectedCard?.id ?? null : null,
+      p_cashback_amount: paymentMethod === "card" && cardReturns ? cardReturns.totalSavings : 0,
     });
     setSaving(false);
     if (!isEditing) {
@@ -401,6 +427,132 @@ export function QuickLogForm({ vehicleId, vehicleName, initialExpense, onDone }:
         </div>
       </div>
 
+      {/* CARD PAYMENT DETAILS: Registered cards + live cashback/waiver preview */}
+      {paymentMethod === "card" && (
+        <div
+          className="u-col u-gap-3"
+          style={{
+            background: "rgba(255, 255, 255, 0.03)",
+            padding: 14,
+            borderRadius: 16,
+            border: "1px solid rgba(255, 255, 255, 0.08)",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <label style={{ fontSize: "0.85rem", color: "var(--ink-muted, #a0a097)", fontWeight: 600 }}>
+              Select Card
+            </label>
+            <button
+              type="button"
+              onClick={() => setCardSheetOpen(true)}
+              style={{
+                background: "transparent",
+                border: 0,
+                color: "var(--accent-500, #f5b800)",
+                fontSize: "0.8rem",
+                fontWeight: 700,
+                cursor: "pointer",
+                padding: "2px 6px",
+              }}
+            >
+              + Add Card
+            </button>
+          </div>
+
+          {cards.length > 0 ? (
+            <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }}>
+              {cards.map((c) => (
+                <CardVisual
+                  key={c.id}
+                  card={c}
+                  compact
+                  selected={c.id === selectedCard?.id}
+                  onClick={() => setSelectedCardId(c.id)}
+                />
+              ))}
+            </div>
+          ) : (
+            <div
+              style={{
+                border: "1px dashed rgba(255, 255, 255, 0.15)",
+                borderRadius: 12,
+                padding: "12px 14px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 10,
+              }}
+            >
+              <div>
+                <div style={{ fontSize: "0.85rem", fontWeight: 600, color: "#ffffff" }}>
+                  💳 No cards saved yet
+                </div>
+                <div style={{ fontSize: "0.75rem", color: "var(--ink-muted, #a0a097)" }}>
+                  Add your card to calculate fuel cashback & surcharge waivers
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCardSheetOpen(true)}
+                style={{
+                  background: "var(--accent-500, #f5b800)",
+                  color: "#000000",
+                  border: 0,
+                  borderRadius: 999,
+                  padding: "6px 12px",
+                  fontSize: "0.8rem",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                + Add Card
+              </button>
+            </div>
+          )}
+
+          {/* Real-time Returns & Surcharge Waiver Badge */}
+          {cardReturns && cardReturns.totalSavings > 0 && (
+            <div
+              style={{
+                background: "rgba(245, 184, 0, 0.12)",
+                border: "1px solid rgba(245, 184, 0, 0.35)",
+                borderRadius: 12,
+                padding: "10px 14px",
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+              }}
+            >
+              <div
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: "50%",
+                  background: "rgba(245, 184, 0, 0.2)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "1rem",
+                  color: "var(--accent-500, #f5b800)",
+                  flexShrink: 0,
+                }}
+              >
+                ✨
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: "0.88rem", fontWeight: 700, color: "var(--accent-500, #f5b800)" }}>
+                  Estimated Returns: ₹{cardReturns.totalSavings.toFixed(2)} ({cardReturns.effectiveRatePercent}%)
+                </div>
+                <div style={{ fontSize: "0.75rem", color: "var(--ink-muted, #a0a097)", marginTop: 2 }}>
+                  {cardReturns.breakdownText}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Odometer Reading */}
       <div>
         <label htmlFor="odometer" style={{ fontSize: "0.85rem", color: "var(--ink-muted, #a0a097)", fontWeight: 600 }}>
@@ -534,6 +686,19 @@ export function QuickLogForm({ vehicleId, vehicleName, initialExpense, onDone }:
             Undo
           </button>
         </p>
+      )}
+
+      {cardSheetOpen && (
+        <AddEditCardSheet
+          onSave={async (input) => {
+            const res = await addCard(input);
+            if (res.card) {
+              setSelectedCardId(res.card.id);
+            }
+            return res;
+          }}
+          onClose={() => setCardSheetOpen(false)}
+        />
       )}
     </div>
   );

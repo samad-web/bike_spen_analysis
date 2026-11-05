@@ -8,6 +8,7 @@ import { VehicleDetailScreen } from "@/vehicles/VehicleDetailScreen";
 import { NfcToolsScreen } from "@/nfc/NfcToolsScreen";
 import { AnalyticsScreen } from "@/analytics/AnalyticsScreen";
 import { SettingsScreen } from "@/settings/SettingsScreen";
+import { CardsScreen } from "@/cards/CardsScreen";
 import { CalendarScreen } from "@/calendar/CalendarScreen";
 import { TapHandler } from "@/tap-session/TapHandler";
 import { DesktopSidebar, MobileNav } from "./Navigation";
@@ -98,6 +99,7 @@ export function App() {
           <Route path="/nfc-tools" element={<NfcToolsScreen />} />
           <Route path="/analytics" element={<AnalyticsScreen />} />
           <Route path="/settings" element={<SettingsScreen />} />
+          <Route path="/cards" element={<CardsScreen />} />
           <Route path="/admin" element={<AdminScreen />} />
           <Route path="/donate" element={<DonateScreen />} />
           <Route path="/v/:token" element={<TokenRouteHandler />} />

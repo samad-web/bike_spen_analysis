@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { queueSaveExpense, type SaveExpensePayload } from "@/lib/offline-queue";
+import { queueSaveExpense, type SaveExpensePayload, type PaymentMethod } from "@/lib/offline-queue";
 
 export interface Expense {
   id: string;
@@ -12,6 +12,9 @@ export interface Expense {
   odometer_reading: number | null;
   expense_date: string;
   notes: string | null;
+  payment_method?: PaymentMethod;
+  card_id?: string | null;
+  cashback_amount?: number;
 }
 
 export function useExpenses(vehicleId: string | null) {
@@ -27,7 +30,7 @@ export function useExpenses(vehicleId: string | null) {
     setLoading(true);
     const { data, error } = await supabase
       .from("expenses")
-      .select("id, vehicle_id, category, total_amount, litres, price_per_litre, odometer_reading, expense_date, notes")
+      .select("id, vehicle_id, category, total_amount, litres, price_per_litre, odometer_reading, expense_date, notes, payment_method, card_id, cashback_amount")
       .eq("vehicle_id", vehicleId)
       .is("deleted_at", null)
       .order("expense_date", { ascending: false });

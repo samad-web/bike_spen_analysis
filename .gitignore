@@ -12,3 +12,4 @@ ios/
 tsconfig.tsbuildinfo
 *.apk
 *.aab
+supabase/.temp/

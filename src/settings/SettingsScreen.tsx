@@ -69,6 +69,20 @@ export function SettingsScreen() {
         </div>
       </Card>
 
+      <Card>
+        <div className="u-row u-row-between" style={{ alignItems: "center" }}>
+          <div>
+            <h3 style={{ margin: 0 }}>Payment Cards & Cashback</h3>
+            <p className="u-ink-muted u-text-sm" style={{ margin: "4px 0 0" }}>
+              Configure fuel credit cards, 1% surcharge waivers, and returns.
+            </p>
+          </div>
+          <Link to="/cards" className="btn btn--primary btn--sm" style={{ textDecoration: "none", whiteSpace: "nowrap" }}>
+            <Icon name="card" size="sm" /> Cards
+          </Link>
+        </div>
+      </Card>
+
       <InviteCard/>
 
       <Card>

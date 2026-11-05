@@ -20,6 +20,7 @@ import { RideCalendar } from "@/calendar/RideCalendar";
 
 interface AnalyticsExpense extends ExpenseRow {
   payment_method: "cash" | "card" | "upi" | "wallet" | "net_banking" | "other";
+  cashback_amount?: number;
 }
 
 type Range = "6m" | "ytd" | "12m" | "all";
@@ -36,7 +37,7 @@ export function AnalyticsScreen() {
     void (async () => {
       const [exp, ride] = await Promise.all([
         supabase.from("expenses")
-          .select("vehicle_id, category, total_amount, litres, odometer_reading, expense_date, payment_method")
+          .select("vehicle_id, category, total_amount, litres, odometer_reading, expense_date, payment_method, cashback_amount")
           .is("deleted_at", null),
         supabase.from("ride_logs").select("vehicle_id, ride_date"),
       ]);
@@ -70,6 +71,7 @@ export function AnalyticsScreen() {
   const totalSpend = filtered.reduce((s, e) => s + e.total_amount, 0);
   const totalLitres = filtered.reduce((s, e) => s + (e.litres ?? 0), 0);
   const fuelSpend = filtered.filter((e) => e.category === "fuel").reduce((s, e) => s + e.total_amount, 0);
+  const totalCashback = filtered.reduce((s, e) => s + (e.cashback_amount ?? 0), 0);
 
   const paymentBreakdown = useMemo(() => {
     const buckets: Record<string, number> = {};
@@ -168,9 +170,13 @@ export function AnalyticsScreen() {
         <div className="bento__3"><StatTile label="Total spend" value={formatCurrency(totalSpend)} variant="accent"/></div>
         <div className="bento__3"><StatTile label="Fuel spend"  value={formatCurrency(fuelSpend)}/></div>
         <div className="bento__3"><StatTile label="Litres"      value={totalLitres.toFixed(1) + " L"}/></div>
-        <div className="bento__3"><StatTile
-          label="Avg ₹/L"
-          value={totalLitres > 0 ? formatCurrency(fuelSpend / totalLitres) : "—"}/></div>
+        {totalCashback > 0 ? (
+          <div className="bento__3"><StatTile label="Card Returns" value={formatCurrency(totalCashback)} delta="cashback saved"/></div>
+        ) : (
+          <div className="bento__3"><StatTile
+            label="Avg ₹/L"
+            value={totalLitres > 0 ? formatCurrency(fuelSpend / totalLitres) : "—"}/></div>
+        )}
       </div>
 
       {filtered.length === 0 ? (

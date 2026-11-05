@@ -19,6 +19,7 @@ import { TodayRideWidget } from "@/calendar/RideCalendar";
 interface ExpenseWithPayment extends ExpenseRow {
   payment_method: "cash" | "card" | "upi" | "wallet" | "net_banking" | "other";
   id: string;
+  cashback_amount?: number;
 }
 
 export function DashboardScreen() {
@@ -41,7 +42,7 @@ export function DashboardScreen() {
     void (async () => {
       const [exp, ride] = await Promise.all([
         supabase.from("expenses")
-          .select("id, vehicle_id, category, total_amount, litres, odometer_reading, expense_date, payment_method")
+          .select("id, vehicle_id, category, total_amount, litres, odometer_reading, expense_date, payment_method, cashback_amount")
           .is("deleted_at", null)
           .order("expense_date", { ascending: false })
           .limit(500),
@@ -66,6 +67,8 @@ export function DashboardScreen() {
   const prevMonthSpend = useMemo(() => expenses
     .filter((e) => e.expense_date.startsWith(prevMonthKey))
     .reduce((s, e) => s + e.total_amount, 0), [expenses, prevMonthKey]);
+
+  const totalCashback = useMemo(() => expenses.reduce((s, e) => s + (e.cashback_amount ?? 0), 0), [expenses]);
 
   const delta = prevMonthSpend > 0 ? ((monthSpend - prevMonthSpend) / prevMonthSpend) * 100 : null;
 
@@ -146,7 +149,11 @@ export function DashboardScreen() {
         {/* Side column: two stacked stats */}
         <div className="bento__4 u-col u-gap-4">
           <StatTile label="Vehicles" value={String(vehicles.length)} />
-          <StatTile label="Fuel entries" value={String(expenses.filter((e) => e.category === "fuel").length)} />
+          {totalCashback > 0 ? (
+            <StatTile label="Card Returns" value={formatCurrency(totalCashback)} delta="cashback + waiver" />
+          ) : (
+            <StatTile label="Fuel entries" value={String(expenses.filter((e) => e.category === "fuel").length)} />
+          )}
         </div>
 
         {/* Today's Ride Planner Widget */}
@@ -236,7 +243,14 @@ export function DashboardScreen() {
                     </span>
                     <div>
                       <div className="list__row-title">{v?.name ?? "Unknown"}</div>
-                      <div className="list__row-meta">{e.expense_date} · {paymentLabel(e.payment_method)}</div>
+                      <div className="list__row-meta">
+                        {e.expense_date} · {paymentLabel(e.payment_method)}
+                        {e.cashback_amount != null && e.cashback_amount > 0 && (
+                          <span style={{ color: "var(--accent-500, #f5b800)", fontWeight: 600, marginLeft: 6 }}>
+                            · ₹{e.cashback_amount.toFixed(2)} saved
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="list__row-value">{formatCurrency(e.total_amount)}</div>
                   </li>

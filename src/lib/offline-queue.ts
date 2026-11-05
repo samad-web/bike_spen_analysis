@@ -24,6 +24,8 @@ export interface SaveExpensePayload {
   p_items: { label: string; amount: number }[] | null;
   p_payment_method: PaymentMethod;
   p_fuel_unit?: FuelUnit;    // optional; defaults to 'L' server-side for petrol/diesel
+  p_card_id?: string | null; // optional reference to payment_cards
+  p_cashback_amount?: number; // optional cashback + surcharge waived amount
 }
 
 /**
