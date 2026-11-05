@@ -52,7 +52,12 @@ create index if not exists expenses_card_id_idx
   on expenses(card_id)
   where deleted_at is null;
 
--- 4. Update save_expense RPC with optional card_id and cashback_amount
+-- 4. Drop older save_expense functions so defaults and signatures update cleanly
+drop function if exists save_expense(uuid, uuid, expense_category, numeric, numeric, numeric, date, text, jsonb, payment_method, fuel_unit);
+drop function if exists save_expense(uuid, uuid, expense_category, numeric, numeric, numeric, date, text, jsonb, payment_method);
+drop function if exists save_expense(uuid, uuid, expense_category, numeric, numeric, numeric, date, text, jsonb);
+
+-- 5. Create unified save_expense RPC with optional card_id and cashback_amount
 create or replace function save_expense(
   p_id uuid,
   p_vehicle_id uuid,
@@ -137,27 +142,3 @@ begin
 end;
 $$;
 
--- Overload for backward-compatibility with callers supplying 11 parameters
-create or replace function save_expense(
-  p_id uuid,
-  p_vehicle_id uuid,
-  p_category expense_category,
-  p_total_amount numeric,
-  p_litres numeric,
-  p_odometer_reading numeric,
-  p_expense_date date,
-  p_notes text,
-  p_items jsonb,
-  p_payment_method payment_method,
-  p_fuel_unit fuel_unit
-) returns uuid
-language sql
-security invoker
-set search_path = public, pg_temp
-as $$
-  select save_expense(
-    p_id, p_vehicle_id, p_category, p_total_amount, p_litres,
-    p_odometer_reading, p_expense_date, p_notes, p_items,
-    p_payment_method, p_fuel_unit, null::uuid, 0.0::numeric
-  );
-$$;
